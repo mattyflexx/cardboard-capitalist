@@ -1,5 +1,5 @@
-import { TCG_SETS, DOODLEMON_ART, ASSETS, LAYOUT_BLUEPRINTS } from './config.js';
-import { gameState, updateGameState, calculateNetWorth, getCardValue, determineCardCondition, updateMarket, initializeStats, updateStats, ACHIEVEMENTS } from './state.js';
+import { TCG_SETS, ASSETS, LAYOUT_BLUEPRINTS } from './config.js';
+import { gameState, updateGameState, calculateNetWorth, getCardValue, determineCardCondition, updateMarket, initializeStats, updateStats, ACHIEVEMENTS, CARD_CONDITIONS } from './state.js';
 
 const DOM = {
     mainView: document.getElementById('main-view'),
@@ -21,17 +21,28 @@ const DOM = {
 let tutorialActive = false;
 let currentTutorialStep = 0;
 
+// The path to your local assets folder. Must match the folder name in your repository.
+const ASSET_PATH = 'assets/';
+
 function initializeGame() {
     console.log("Game is initializing...");
+    
+    // Generate image paths for all standard cards.
+    // This is the new, reliable way to handle local assets.
+    TCG_SETS.genesis.cards.forEach(card => {
+        // If a card does NOT have a hard-coded 'img' property (i.e., it's not an AA/Chase)...
+        if (!card.img) {
+            // ...generate its path based on the "XXX Name.png" convention.
+            const paddedDexNum = String(card.doodledexNum).padStart(3, '0');
+            card.img = `${ASSET_PATH}${paddedDexNum} ${card.name}.png`;
+        }
+    });
+
     const gameLoaded = loadGame();
 
     if (!gameLoaded) {
         initializeStats();
-        TCG_SETS.genesis.cards.forEach(card => {
-            if (!card.img && DOODLEMON_ART[card.doodledexNum]) {
-                card.img = DOODLEMON_ART[card.doodledexNum];
-            }
-        });
+        // Starter cards
         addCardToCollection(TCG_SETS.genesis.cards.find(c => c.id === 'GS032'));
         addCardToCollection(TCG_SETS.genesis.cards.find(c => c.id === 'GS-AA1'));
         addCardToCollection(TCG_SETS.genesis.cards.find(c => c.id === 'GS001'));
@@ -177,42 +188,38 @@ function renderFilteredCollection(grid) {
   const sortBy = document.getElementById('collection-sort')?.value || 'id';
   const rarityFilter = document.getElementById('collection-filter-rarity')?.value || 'all';
   
-  let collectionKeys = Object.keys(gameState.player.collection);
-  
+  let allInstances = [];
+  Object.values(gameState.player.collection).forEach(cardData => {
+      cardData.instances.forEach(instance => {
+          allInstances.push({ cardInfo: cardData.cardInfo, instance });
+      });
+  });
+
   if (rarityFilter !== 'all') {
-    collectionKeys = collectionKeys.filter(cardId => gameState.player.collection[cardId].cardInfo.rarity === rarityFilter);
+    allInstances = allInstances.filter(item => item.cardInfo.rarity === rarityFilter);
   }
   
-  collectionKeys.sort((a, b) => {
-    const cardA = gameState.player.collection[a].cardInfo;
-    const cardB = gameState.player.collection[b].cardInfo;
+  allInstances.sort((a, b) => {
+    const cardA = a.cardInfo;
+    const cardB = b.cardInfo;
     
     switch(sortBy) {
       case 'name': return cardA.name.localeCompare(cardB.name);
       case 'rarity': return cardA.rarity.localeCompare(cardB.rarity);
-      case 'value': return getCardValue(cardB) - getCardValue(cardA);
+      case 'value': return getCardValue(cardB, b.instance) - getCardValue(cardA, a.instance);
       default: return cardA.id.localeCompare(cardB.id);
     }
   });
   
-  if (collectionKeys.length === 0) {
+  if (allInstances.length === 0) {
     grid.innerHTML = `<p class="col-span-full text-gray-400">No cards match your filter criteria.</p>`;
     return;
   }
   
-  for (const cardId of collectionKeys) {
-    const cardData = gameState.player.collection[cardId];
-    cardData.instances.forEach(instance => {
-      const cardElement = buildCardElement(cardData.cardInfo, instance);
-      if (cardData.instances.length > 1) {
-        const countBadge = document.createElement('div');
-        countBadge.className = 'absolute top-1 left-1 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded z-10';
-        countBadge.textContent = `×${cardData.instances.length}`;
-        cardElement.appendChild(countBadge);
-      }
+  allInstances.forEach(item => {
+      const cardElement = buildCardElement(item.cardInfo, item.instance);
       grid.appendChild(cardElement);
-    });
-  }
+  });
 }
 
 function calculateCollectionValue() {
@@ -225,7 +232,6 @@ function calculateCollectionValue() {
   return totalValue;
 }
 
-// Other render functions (renderStoreView, renderDoodleDexView, etc.)
 function renderStoreView(container) {
     const storeDiv = document.createElement('div');
     storeDiv.className = 'space-y-6';
@@ -268,12 +274,19 @@ function renderStoreView(container) {
     container.appendChild(storeDiv);
 }
 
-
 function renderDoodleDexView(container) {
     const dexDiv = document.createElement('div');
     dexDiv.className = 'space-y-4';
     
     const ownedDoodlemon = new Set();
+    const allDoodlemon = {};
+
+    TCG_SETS.genesis.cards.forEach(card => {
+        if (!allDoodlemon[card.doodledexNum]) {
+            allDoodlemon[card.doodledexNum] = { name: card.name, img: card.img };
+        }
+    });
+
     Object.values(gameState.player.collection).forEach(cardData => {
         ownedDoodlemon.add(cardData.cardInfo.doodledexNum);
     });
@@ -281,31 +294,32 @@ function renderDoodleDexView(container) {
     const grid = document.createElement('div');
     grid.className = 'grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4';
     
-    for (let i = 1; i <= 50; i++) {
+    Object.keys(allDoodlemon).sort((a,b) => a - b).forEach(doodledexNum => {
         const dexEntry = document.createElement('div');
         dexEntry.className = 'bg-gray-800 p-4 rounded-lg text-center';
         
-        const isOwned = ownedDoodlemon.has(i);
-        const artUrl = DOODLEMON_ART[i];
+        const isOwned = ownedDoodlemon.has(parseInt(doodledexNum));
+        const artUrl = allDoodlemon[doodledexNum].img;
         
         dexEntry.innerHTML = `
             <div class="aspect-square bg-gray-700 rounded-lg mb-2 flex items-center justify-center overflow-hidden">
                 ${isOwned && artUrl ? 
-                    `<img src="${artUrl}" alt="Doodlemon ${i}" class="w-full h-full object-contain">` :
+                    `<img src="${artUrl}" alt="${allDoodlemon[doodledexNum].name}" class="w-full h-full object-contain">` :
                     `<span class="text-gray-500 text-2xl">?</span>`
                 }
             </div>
-            <p class="text-sm ${isOwned ? 'text-white' : 'text-gray-500'}">#${i.toString().padStart(3, '0')}</p>
-            <p class="text-xs ${isOwned ? 'text-gray-300' : 'text-gray-600'}">${isOwned ? 'Owned' : 'Unknown'}</p>
+            <p class="text-sm ${isOwned ? 'text-white' : 'text-gray-500'}">#${String(doodledexNum).padStart(3, '0')}</p>
+            <p class="text-xs ${isOwned ? 'text-gray-300' : 'text-gray-600'}">${isOwned ? allDoodlemon[doodledexNum].name : 'Unknown'}</p>
         `;
         
         grid.appendChild(dexEntry);
-    }
+    });
     
-    dexDiv.innerHTML = `<h3 class="text-lg font-bold text-white mb-4">Discovered: ${ownedDoodlemon.size}/50</h3>`;
+    dexDiv.innerHTML = `<h3 class="text-lg font-bold text-white mb-4">Discovered: ${ownedDoodlemon.size}/${Object.keys(allDoodlemon).length}</h3>`;
     dexDiv.appendChild(grid);
     container.appendChild(dexDiv);
 }
+
 
 function renderBlueprintView(container) {
     container.innerHTML = `
@@ -448,267 +462,6 @@ function renderCardManagementView(container, cardId, instanceUid) {
   container.appendChild(managementDiv);
 }
 
-function renderAchievementsView(container) {
-  if (!gameState.achievements) {
-    gameState.achievements = JSON.parse(JSON.stringify(ACHIEVEMENTS));
-  }
-  
-  const achievementsDiv = document.createElement('div');
-  achievementsDiv.className = 'space-y-4';
-  
-  const statsDiv = document.createElement('div');
-  statsDiv.className = 'bg-gray-800 p-4 rounded-lg';
-  
-  const unlockedCount = Object.values(gameState.achievements).filter(a => a.unlocked).length;
-  const totalCount = Object.values(gameState.achievements).length;
-  
-  statsDiv.innerHTML = `
-    <h3 class="text-lg font-bold text-white mb-2">Achievements Progress</h3>
-    <div class="w-full bg-gray-700 rounded-full h-4 mb-2">
-      <div class="bg-blue-600 h-4 rounded-full" style="width: ${(unlockedCount / totalCount) * 100}%"></div>
-    </div>
-    <p class="text-gray-300 text-sm">Unlocked ${unlockedCount} of ${totalCount} achievements</p>
-  `;
-  achievementsDiv.appendChild(statsDiv);
-  
-  const listDiv = document.createElement('div');
-  listDiv.className = 'space-y-2';
-  
-  Object.values(gameState.achievements).filter(a => a.unlocked).forEach(achievement => {
-      const achievementCard = document.createElement('div');
-      achievementCard.className = 'bg-gray-800 p-4 rounded-lg border-l-4 border-green-500 flex justify-between items-center';
-      achievementCard.innerHTML = `
-        <div>
-          <h4 class="font-bold text-white">${achievement.name}</h4>
-          <p class="text-gray-300 text-sm">${achievement.description}</p>
-          <p class="text-green-400 text-xs mt-1">Unlocked on Year ${achievement.unlockDate.year}, Day ${achievement.unlockDate.day}</p>
-        </div>
-        <div class="bg-green-600 rounded-full p-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg></div>
-      `;
-      listDiv.appendChild(achievementCard);
-    });
-  
-  Object.values(gameState.achievements).filter(a => !a.unlocked).forEach(achievement => {
-      const achievementCard = document.createElement('div');
-      achievementCard.className = 'bg-gray-800 p-4 rounded-lg border-l-4 border-gray-600 flex justify-between items-center opacity-75';
-      let rewardText = '';
-      if (achievement.reward) {
-        if (achievement.reward.cash) rewardText = `Reward: $${achievement.reward.cash}`;
-        else if (achievement.reward.supplies) rewardText = `Reward: ${Object.entries(achievement.reward.supplies).map(([item, amount]) => `${amount} ${item}`).join(', ')}`;
-      }
-      achievementCard.innerHTML = `
-        <div>
-          <h4 class="font-bold text-white">${achievement.name}</h4>
-          <p class="text-gray-300 text-sm">${achievement.description}</p>
-          ${rewardText ? `<p class="text-yellow-400 text-xs mt-1">${rewardText}</p>` : ''}
-        </div>
-        <div class="bg-gray-600 rounded-full p-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg></div>
-      `;
-      listDiv.appendChild(achievementCard);
-    });
-  
-  achievementsDiv.appendChild(listDiv);
-  container.appendChild(achievementsDiv);
-}
-
-function renderStatsView(container) {
-  initializeStats();
-  const statsDiv = document.createElement('div');
-  statsDiv.className = 'space-y-6';
-  statsDiv.innerHTML = `
-    <div class="bg-gray-800 p-6 rounded-lg">
-      <h3 class="text-xl font-bold mb-4 text-white">Game Statistics</h3>
-      <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
-        <div><p class="text-gray-400">Days Played</p><p class="text-2xl font-bold text-white">${gameState.stats.daysPlayed}</p></div>
-        <div><p class="text-gray-400">Packs Opened</p><p class="text-2xl font-bold text-white">${gameState.stats.packsOpened}</p></div>
-        <div><p class="text-gray-400">Cards Acquired</p><p class="text-2xl font-bold text-white">${gameState.stats.cardsAcquired}</p></div>
-        <div><p class="text-gray-400">Cards Sold</p><p class="text-2xl font-bold text-white">${gameState.stats.cardsSold}</p></div>
-        <div><p class="text-gray-400">Total Earned</p><p class="text-2xl font-bold text-green-400">$${gameState.stats.totalEarned.toFixed(2)}</p></div>
-        <div><p class="text-gray-400">Total Spent</p><p class="text-2xl font-bold text-red-400">$${gameState.stats.totalSpent.toFixed(2)}</p></div>
-      </div>
-    </div>
-    <div class="bg-gray-800 p-6 rounded-lg">
-      <h3 class="text-xl font-bold mb-4 text-white">Collection Highlights</h3>
-      <div class="space-y-4">
-        <div><p class="text-gray-400">Highest Value Card</p><p class="text-xl font-bold text-white">${gameState.stats.highestValueCard.name}</p><p class="text-green-400">$${gameState.stats.highestValueCard.value.toFixed(2)}</p></div>
-        <div><p class="text-gray-400">Rarity Distribution</p><div class="w-full bg-gray-700 rounded-full h-4 mt-2">${generateRarityDistributionBar()}</div>
-          <div class="flex justify-between text-xs mt-1"><span class="text-gray-400">Common</span><span class="text-gray-400">Uncommon</span><span class="text-gray-400">Holo</span><span class="text-gray-400">Alt Art</span><span class="text-gray-400">Chase</span></div>
-        </div>
-      </div>
-    </div>
-  `;
-  container.appendChild(statsDiv);
-}
-
-function generateRarityDistributionBar() {
-  const rarityCounts = {'Common': 0, 'Uncommon': 0, 'Holo Rare': 0, 'Alternate Art': 0, 'Chase': 0};
-  Object.values(gameState.player.collection).forEach(cardData => { rarityCounts[cardData.cardInfo.rarity] += cardData.instances.length; });
-  const totalCards = Object.values(rarityCounts).reduce((sum, count) => sum + count, 0);
-  if (totalCards === 0) return '<div class="text-gray-500 text-center py-1">No cards in collection</div>';
-  const colors = {'Common': 'bg-gray-500', 'Uncommon': 'bg-green-500', 'Holo Rare': 'bg-blue-500', 'Alternate Art': 'bg-purple-500', 'Chase': 'bg-yellow-500'};
-  return Object.entries(rarityCounts).map(([rarity, count]) => `<div class="${colors[rarity]} h-4 inline-block" style="width: ${(count / totalCards) * 100}%"></div>`).join('');
-}
-
-function renderSettingsView(container) {
-  const settingsDiv = document.createElement('div');
-  settingsDiv.className = 'space-y-6';
-  settingsDiv.innerHTML = `
-    <div class="bg-gray-800 p-6 rounded-lg">
-      <h3 class="text-xl font-bold mb-4 text-white">Game Settings</h3>
-      <div class="space-y-4">
-        <div><label class="block text-gray-300 mb-2">Game Volume</label><input type="range" min="0" max="100" value="${gameState.settings?.volume || 50}" class="w-full" id="volume-slider"></div>
-        <div class="flex items-center"><input type="checkbox" id="auto-save-checkbox" class="mr-2" ${gameState.settings?.autoSave ? 'checked' : ''}><label for="auto-save-checkbox" class="text-gray-300">Auto-save game daily</label></div>
-      </div>
-    </div>
-    <div class="bg-gray-800 p-6 rounded-lg">
-      <h3 class="text-xl font-bold mb-4 text-white">Save & Load</h3>
-      <div class="flex gap-4">
-        <button id="save-game-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Save Game</button>
-        <button id="load-game-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Load Game</button>
-        <button id="reset-game-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Reset Game</button>
-      </div>
-    </div>
-    <div class="bg-gray-800 p-6 rounded-lg">
-      <h3 class="text-xl font-bold mb-4 text-white">About</h3>
-      <p class="text-gray-300 mb-2">Cardboard Capitalist v1.0.0</p>
-      <p class="text-gray-400 text-sm">A trading card game simulation where you collect, trade, and invest in the fictional Doodlemon TCG.</p>
-    </div>
-  `;
-  container.appendChild(settingsDiv);
-  
-  document.getElementById('save-game-btn').addEventListener('click', saveGame);
-  document.getElementById('load-game-btn').addEventListener('click', () => { if (loadGame()) { updateUI(); renderMainView('collection'); } });
-  document.getElementById('reset-game-btn').addEventListener('click', () => { if (confirm("Are you sure you want to reset your game? All progress will be lost.")) { localStorage.removeItem('cardboardCapitalistSave'); location.reload(); } });
-  document.getElementById('volume-slider').addEventListener('change', (e) => { if (!gameState.settings) gameState.settings = {}; gameState.settings.volume = parseInt(e.target.value); logMessage(`Volume set to ${gameState.settings.volume}%`, "info"); });
-  document.getElementById('auto-save-checkbox').addEventListener('change', (e) => { if (!gameState.settings) gameState.settings = {}; gameState.settings.autoSave = e.target.checked; logMessage(`Auto-save ${gameState.settings.autoSave ? 'enabled' : 'disabled'}`, "info"); });
-}
-
-function renderPackOpeningView(container, setName) {
-  const set = TCG_SETS[setName];
-  if (!set) return;
-  
-  container.innerHTML = '';
-  const openingDiv = document.createElement('div');
-  openingDiv.className = 'flex flex-col items-center justify-center h-full';
-  openingDiv.innerHTML = `
-    <div class="pack-animation-container relative w-64 h-96 mb-8">
-      <img src="${set.pack.img}" alt="${set.name} Pack" class="pack-image absolute w-full h-full object-contain">
-      <div class="pack-glow absolute w-full h-full bg-blue-500 opacity-0 rounded-lg filter blur-xl"></div>
-    </div>
-    <button id="reveal-cards-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg">Open Pack</button>
-  `;
-  container.appendChild(openingDiv);
-  
-  const packCards = generatePackCards(setName);
-  document.getElementById('reveal-cards-btn').addEventListener('click', () => {
-    const packImage = document.querySelector('.pack-image');
-    const packGlow = document.querySelector('.pack-glow');
-    packGlow.classList.add('animate-pulse');
-    packGlow.style.opacity = '0.7';
-    setTimeout(() => {
-      packImage.style.transform = 'scale(1.1)';
-      packImage.style.opacity = '0';
-      packGlow.style.opacity = '1';
-      setTimeout(() => { showOpenedCards(container, packCards); }, 1000);
-    }, 800);
-  });
-}
-
-function generatePackCards(setName) {
-    const set = TCG_SETS[setName];
-    if (!set || gameState.player.sealedInventory[setName] <= 0) return [];
-    
-    gameState.player.sealedInventory[setName]--;
-    const packCards = [];
-    const rarityWeights = {'Common': 70, 'Uncommon': 20, 'Holo Rare': 8, 'Alternate Art': 1.5, 'Chase': 0.5};
-    for (let i = 0; i < 11; i++) {
-        const rarity = weightedRandomChoice(rarityWeights);
-        const availableCards = set.cards.filter(c => c.rarity === rarity);
-        if (availableCards.length > 0) {
-            const randomCard = availableCards[Math.floor(Math.random() * availableCards.length)];
-            const condition = determineCardCondition();
-            packCards.push({ cardInfo: randomCard, condition: condition });
-        }
-    }
-    return packCards;
-}
-
-function showOpenedCards(container, packCards) {
-    container.innerHTML = '';
-    const resultsDiv = document.createElement('div');
-    resultsDiv.className = 'space-y-6';
-
-    const packValue = packCards.reduce((sum, card) => sum + getCardValue(card.cardInfo), 0);
-    const rarityBreakdown = {};
-    packCards.forEach(card => {
-        rarityBreakdown[card.cardInfo.rarity] = (rarityBreakdown[card.cardInfo.rarity] || 0) + 1;
-    });
-
-    resultsDiv.innerHTML = `
-        <div class="text-center">
-            <h3 class="text-2xl font-bold text-white mb-2">Pack Opened!</h3>
-            <p class="text-green-400 font-bold text-lg">Total Value: $${packValue.toFixed(2)}</p>
-            <div class="flex justify-center gap-4 mt-2 text-sm">
-                ${Object.entries(rarityBreakdown).map(([rarity, count]) => `<span class="text-gray-300">${count}x ${rarity}</span>`).join('')}
-            </div>
-        </div>
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4 mb-6" id="pack-cards-grid"></div>
-        <div class="flex justify-center gap-4">
-            <button id="add-to-collection-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg">Add All to Collection</button>
-            <button id="open-another-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Open Another Pack</button>
-        </div>
-    `;
-    container.appendChild(resultsDiv);
-
-    const cardsGrid = document.getElementById('pack-cards-grid');
-    packCards.forEach((cardData, index) => {
-        setTimeout(() => {
-            const cardElement = buildCardElement(cardData.cardInfo);
-            cardElement.style.opacity = '0';
-            cardElement.style.transform = 'scale(0.8)';
-
-            const rarityColors = {'Common': 'shadow-gray-500', 'Uncommon': 'shadow-green-500', 'Holo Rare': 'shadow-blue-500', 'Alternate Art': 'shadow-purple-500', 'Chase': 'shadow-yellow-500'};
-            cardElement.classList.add('transition-all', 'duration-500', rarityColors[cardData.cardInfo.rarity] || 'shadow-gray-500');
-
-            const badgeContainer = document.createElement('div');
-            badgeContainer.className = 'absolute top-1 right-1 space-y-1 z-10';
-            const conditionBadge = document.createElement('div');
-            conditionBadge.className = 'bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded';
-            conditionBadge.textContent = cardData.condition;
-            const valueBadge = document.createElement('div');
-            valueBadge.className = 'bg-green-600 bg-opacity-90 text-white text-xs px-2 py-1 rounded font-bold';
-            valueBadge.textContent = `$${getCardValue(cardData.cardInfo).toFixed(2)}`;
-            badgeContainer.appendChild(conditionBadge);
-            badgeContainer.appendChild(valueBadge);
-            cardElement.appendChild(badgeContainer);
-            cardsGrid.appendChild(cardElement);
-
-            setTimeout(() => {
-                cardElement.style.opacity = '1';
-                cardElement.style.transform = 'scale(1)';
-            }, 50);
-        }, index * 200);
-    });
-
-    document.getElementById('add-to-collection-btn').addEventListener('click', () => {
-        packCards.forEach(cardData => addCardToCollection(cardData.cardInfo, cardData.condition));
-        logMessage(`Added ${packCards.length} cards to your collection!`, "success");
-        const newAchievements = checkAchievements();
-        if (newAchievements.length > 0) newAchievements.forEach(achievement => logMessage(`Achievement Unlocked: ${achievement.name}`, "success"));
-        checkHighestValueCard();
-        calculateNetWorth();
-        renderMainView('collection');
-    });
-
-    document.getElementById('open-another-btn').addEventListener('click', () => {
-        if (gameState.player.sealedInventory.genesis > 0) renderPackOpeningView(container, 'genesis');
-        else {
-            logMessage("No more packs to open! Visit the store to buy more.", "info");
-            renderMainView('store');
-        }
-    });
-}
-
 function buildCardElement(cardInfo, instance) {
     const cardElement = document.createElement('div');
     cardElement.className = 'card-container';
@@ -716,10 +469,13 @@ function buildCardElement(cardInfo, instance) {
     if (instance) cardElement.dataset.instanceUid = instance.uid;
 
     const artImg = document.createElement('img');
-    artImg.src = cardInfo.img || 'https://i.imgur.com/yscpJAS.png';
+    artImg.src = cardInfo.img || `${ASSET_PATH}fallback.png`; // Fallback to a local asset
     artImg.alt = cardInfo.name;
     artImg.className = 'card-art';
-    artImg.onerror = function() { this.src = 'https://i.imgur.com/yscpJAS.png'; };
+    artImg.onerror = function() {
+        this.onerror=null; // Prevent infinite loops
+        this.src = `${ASSET_PATH}fallback.png`; // A generic fallback image
+    };
     cardElement.appendChild(artImg);
 
     const frameImg = document.createElement('img');
@@ -728,11 +484,13 @@ function buildCardElement(cardInfo, instance) {
     frameImg.className = 'card-frame';
     cardElement.appendChild(frameImg);
 
+    const textOverlay = document.createElement('div');
+    textOverlay.className = 'card-text-overlay';
+    const canvasWidth = 750;
+    const canvasHeight = 1050;
+
     if (cardInfo.layout === 'Standard') {
-        const textOverlay = document.createElement('div');
-        textOverlay.className = 'card-text-overlay';
         const blueprint = LAYOUT_BLUEPRINTS.standard;
-        const canvasWidth = 750, canvasHeight = 1050;
 
         const nameBox = document.createElement('div');
         nameBox.className = 'card-name-box';
@@ -751,10 +509,22 @@ function buildCardElement(cardInfo, instance) {
         loreBox.style.height = `${(blueprint.lore.height / canvasHeight) * 100}%`;
         loreBox.textContent = cardInfo.lore || "A mysterious creature with unknown powers.";
         textOverlay.appendChild(loreBox);
+    
+    } else if (cardInfo.layout === 'Full-Art') {
+        const blueprint = LAYOUT_BLUEPRINTS.fullArt;
         
-        cardElement.appendChild(textOverlay);
+        const nameBox = document.createElement('div');
+        nameBox.className = 'card-name-box full-art-name-box'; 
+        nameBox.style.left = `${(blueprint.name.x / canvasWidth) * 100}%`;
+        nameBox.style.top = `${(blueprint.name.y / canvasHeight) * 100}%`;
+        nameBox.style.width = `${(blueprint.name.width / canvasWidth) * 100}%`;
+        nameBox.style.height = `${(blueprint.name.height / canvasHeight) * 100}%`;
+        nameBox.textContent = cardInfo.name;
+        textOverlay.appendChild(nameBox);
     }
     
+    cardElement.appendChild(textOverlay);
+
     const inspectOverlay = document.createElement('div');
     inspectOverlay.className = 'card-inspect-overlay';
     cardElement.appendChild(inspectOverlay);
@@ -1064,7 +834,6 @@ function loadGame() {
   }
 }
 
-// Event Listeners and Navigation Setup
 function setupEventListeners() {
     DOM.mainView.addEventListener('click', e => {
         const overlay = e.target.closest('.card-inspect-overlay');
