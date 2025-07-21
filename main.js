@@ -21,20 +21,19 @@ const DOM = {
 let tutorialActive = false;
 let currentTutorialStep = 0;
 
-// The path to your local assets folder. Must match the folder name in your repository.
 const ASSET_PATH = 'assets/';
 
 function initializeGame() {
     console.log("Game is initializing...");
     
     // Generate image paths for all standard cards.
-    // This is the new, reliable way to handle local assets.
     TCG_SETS.genesis.cards.forEach(card => {
-        // If a card does NOT have a hard-coded 'img' property (i.e., it's not an AA/Chase)...
         if (!card.img) {
-            // ...generate its path based on the "XXX Name.png" convention.
             const paddedDexNum = String(card.doodledexNum).padStart(3, '0');
-            card.img = `${ASSET_PATH}${paddedDexNum} ${card.name}.png`;
+            
+            // THE FIX IS HERE: Convert the card name to lowercase to match your filenames.
+            const lowerCaseName = card.name.toLowerCase();
+            card.img = `${ASSET_PATH}${paddedDexNum} ${lowerCaseName}.png`;
         }
     });
 
@@ -42,7 +41,6 @@ function initializeGame() {
 
     if (!gameLoaded) {
         initializeStats();
-        // Starter cards
         addCardToCollection(TCG_SETS.genesis.cards.find(c => c.id === 'GS032'));
         addCardToCollection(TCG_SETS.genesis.cards.find(c => c.id === 'GS-AA1'));
         addCardToCollection(TCG_SETS.genesis.cards.find(c => c.id === 'GS001'));
