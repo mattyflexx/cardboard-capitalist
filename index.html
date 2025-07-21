@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cardboard Capitalist</title>
+    <link rel="stylesheet" href="style_v2.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-800 text-gray-200">
+
+    <div id="app" class="flex h-screen">
+        <aside class="w-80 bg-gray-900 p-4 flex flex-col border-r border-gray-700">
+            <h1 class="text-2xl font-bold mb-4 text-white">Cardboard Capitalist</h1>
+            <div id="player-stats" class="mb-4 text-sm space-y-1">
+                <div>Cash: <span id="player-cash" class="font-semibold text-green-400"></span></div>
+                <div>Net Worth: <span id="player-net-worth" class="font-semibold text-blue-400"></span></div>
+                <div>Sleeves: <span id="player-sleeves" class="font-semibold text-gray-300"></span></div>
+                <div>Toploaders: <span id="player-toploaders" class="font-semibold text-gray-300"></span></div>
+            </div>
+            <div id="time-controls" class="mb-4">
+                <div class="mb-2">Date: <span id="game-date" class="font-semibold"></span></div>
+                <button id="next-day-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Next Day</button>
+            </div>
+            <nav id="main-nav" class="flex flex-col space-y-2 mb-4"></nav>
+            <div id="dev-tools" class="mt-auto border-t border-gray-700 pt-4">
+                 <button id="blueprint-mode-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">Blueprint Mode</button>
+            </div>
+            <div id="log-feed" class="flex-grow overflow-y-auto bg-gray-800 p-2 rounded-md border border-gray-700 mt-4"></div>
+        </aside>
+        
+        <main class="flex-1 p-4 overflow-y-auto">
+            <h2 id="view-title" class="text-xl font-bold mb-4 text-white"></h2>
+            <div id="main-view" class="bg-gray-900 p-4 rounded-lg border border-gray-700 min-h-[80%]"></div>
+        </main>
+    </div>
+
+    <div id="loupe-view-modal" class="hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="text-2xl font-bold text-white">Loupe View Inspection</h3>
+                <button id="close-loupe-btn" class="text-3xl font-bold text-gray-400 hover:text-white">×</button>
+            </div>
+            <div class="inspection-area">
+                <div id="card-image-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>

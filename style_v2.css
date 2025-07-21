@@ -1,0 +1,147 @@
+@font-face {
+    font-family: 'The Bold Font';
+    src: url('https://mattyflexxgames.github.io/THEBOLDFONT-FREEVERSION.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+}
+.hidden { display: none !important; }
+
+/* --- CARD VISUALS --- */
+.card-container {
+    position: relative; aspect-ratio: 5 / 7; background-color: #000;
+    border-radius: 4%; overflow: hidden; display: flex;
+    justify-content: center; align-items: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-container:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0, 195, 255, 0.3);
+}
+.card-container img {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+}
+.card-art { object-fit: contain; z-index: 1; }
+.card-frame { object-fit: cover; z-index: 2; pointer-events: none; }
+.card-inspect-overlay {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 5; cursor: pointer;
+}
+
+/* --- TEXT OVERLAY STYLES --- */
+.card-text-overlay {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 3; pointer-events: none;
+    display: block; 
+}
+.card-name-box, .card-lore-box {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: white;
+    overflow: hidden;
+}
+.card-name-box {
+    font-family: 'The Bold Font', sans-serif;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.6);
+    font-size: 11px;
+}
+.card-lore-box {
+    font-family: 'Inter', sans-serif;
+    align-items: flex-start;
+    white-space: pre-wrap;
+    color: black;
+    padding: 1.5%;
+    font-size: 7px;
+}
+
+/* --- CONTEXT-AWARE SIZING --- */
+#loupe-view-modal .card-name-box {
+    font-size: 36px;
+}
+#loupe-view-modal .card-lore-box {
+    font-size: 17px;
+}
+
+/* --- LOUPE MODAL STYLES --- */
+#loupe-view-modal {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    z-index: 1000; display: flex; align-items: center; justify-content: center;
+}
+.modal-backdrop {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(17, 24, 39, 0.8); backdrop-filter: blur(5px);
+}
+.modal-content {
+    position: relative; background-color: #1f2937; border: 1px solid #374151;
+    border-radius: 0.75rem; padding: 1.5rem; width: 90%; max-width: 450px;
+    display: flex; flex-direction: column; gap: 1rem; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+.modal-header { display: flex; justify-content: space-between; align-items: center; }
+.inspection-area {
+    position: relative; width: 100%;
+    border-radius: 0.5rem; overflow: hidden;
+}
+#card-image-container { position: relative; width: 100%; margin: 0 auto; }
+
+/* --- BLUEPRINT MODE STYLES --- */
+.blueprint-mode-active {
+    display: flex !important;
+    justify-content: center;
+    align-items: center;
+}
+#blueprint-canvas-wrapper {
+    position: relative;
+    width: 750px; height: 1050px;
+    max-width: 80%; max-height: 90%;
+    flex-shrink: 0;
+}
+#blueprint-canvas {
+    width: 100%; height: 100%;
+    cursor: crosshair;
+}
+#blueprint-info-box {
+    position: fixed; top: 1rem;
+    left: calc(20rem + 2rem);
+    background-color: rgba(0,0,0,0.7);
+    color: white; padding: 0.5rem 1rem;
+    border-radius: 0.375rem; font-family: monospace;
+    pointer-events: none; z-index: 1100;
+}
+#blueprint-selection-box {
+    position: absolute;
+    border: 2px dashed rgba(255, 255, 0, 0.8);
+    background-color: rgba(255, 255, 0, 0.2);
+    pointer-events: none; z-index: 10;
+}
+
+/* --- TUTORIAL STYLES --- */
+.tutorial-highlight {
+  position: relative;
+  z-index: 51;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.5), 0 0 20px rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+}
+
+.tutorial-highlight::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 2px solid #3b82f6;
+  border-radius: 8px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
