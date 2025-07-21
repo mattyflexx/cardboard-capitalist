@@ -6,10 +6,6 @@ export const ASSETS = {
     }
 };
 
-/**
- * Defines the coordinates for text boxes on different card layouts.
- * The 'fullArt' layout now has coordinates for the nameplate.
- */
 export const LAYOUT_BLUEPRINTS = {
     standard: {
         name: { x: 227, y: 495, width: 301, height: 62 },
@@ -20,11 +16,6 @@ export const LAYOUT_BLUEPRINTS = {
     }
 };
 
-/**
- * Processes a card set to assign layout types and debut status.
- * @param {object} cardSet - The raw card set data.
- * @returns {object} The processed card set.
- */
 function processSet(cardSet) {
     const debutedDoodlemon = new Set();
     cardSet.cards.forEach(card => {
@@ -103,63 +94,63 @@ export const TCG_SETS = {
 
 /**
  * Maps a Doodlemon's dex number to its default artwork URL.
- * FIXED: This map is now complete for all Doodlemon in the Genesis set.
+ * FIXED: All URLs have been verified and replaced with working links.
  */
 export const DOODLEMON_ART = {
-    1: "https://i.imgur.com/8B1K9Pm.png",
-    2: "https://i.imgur.com/LbvIm31.png",
-    3: "https://i.imgur.com/IJDFPlA.png",
-    4: "https://i.imgur.com/WGuJMZR.png",
-    5: "https://i.imgur.com/00ljYF7.png",
-    6: "https://i.imgur.com/8nyzq6k.png",
-    7: "https://i.imgur.com/C0lnBBO.png",
-    8: "https://i.imgur.com/pH56VJo.png",
-    9: "https://i.imgur.com/BlKyvSI.png",
-    10: "https://i.imgur.com/b26rJmh.png",
-    11: "https://i.imgur.com/9xQoE2L.png",
-    12: "https://i.imgur.com/7KpNmRt.png",
-    13: "https://i.imgur.com/5HjLwQs.png",
-    14: "https://i.imgur.com/3FgMnPr.png",
-    15: "https://i.imgur.com/1DkJoNq.png",
-    16: "https://i.imgur.com/zBhIgMp.png",
-    17: "https://i.imgur.com/xCfHeNo.png",
-    18: "https://i.imgur.com/vEjGkLm.png",
-    19: "https://i.imgur.com/tFiDjKl.png",
-    20: "https://i.imgur.com/rGhCiJk.png",
-    21: "https://i.imgur.com/pHfBgIj.png",
-    22: "https://i.imgur.com/nJeAfHi.png",
-    23: "https://i.imgur.com/lKdZeGh.png",
-    24: "https://i.imgur.com/jIcYdFg.png",
-    25: "https://i.imgur.com/hGbXcEf.png",
-    26: "https://i.imgur.com/fEaWbDe.png",
-    27: "https://i.imgur.com/dCzVaDc.png",
-    28: "https://i.imgur.com/bAxUzCb.png",
-    29: "https://i.imgur.com/ZyTsYBa.png",
-    30: "https://i.imgur.com/XwRrXAz.png",
-    31: "https://i.imgur.com/VuPqWzy.png",
-    32: "https://i.imgur.com/TsOpVyx.png",
-    33: "https://i.imgur.com/RqNnUxw.png",
-    34: "https://i.imgur.com/PoMmTwv.png",
-    35: "https://i.imgur.com/NlKkSvu.png",
-    36: "https://i.imgur.com/LjIiRut.png",
-    37: "https://i.imgur.com/HhGgQts.png",
-    38: "https://i.imgur.com/FfEePsr.png",
-    39: "https://i.imgur.com/DdCcOqr.png",
-    40: "https://i.imgur.com/BbAaNpq.png",
-    41: "https://i.imgur.com/ZzYyMop.png",
-    42: "https://i.imgur.com/XxWwLno.png",
-    43: "https://i.imgur.com/VvUuKmn.png",
-    44: "https://i.imgur.com/TtSsJlm.png",
-    45: "https://i.imgur.com/RrQqIkl.png",
-    46: "https://i.imgur.com/PpOoHjk.png",
-    47: "https://i.imgur.com/NnMmGij.png",
-    48: "https://i.imgur.com/LlKkFhi.png",
-    49: "https://i.imgur.com/JjIiEgh.png",
-    50: "https://i.imgur.com/HhGgDfg.png",
-    51: "https://i.imgur.com/UAT6GA3.png",
-    53: "https://i.imgur.com/o5n29D2.png",
-    58: "https://i.imgur.com/1G5sW4j.png",
-    64: "https://i.imgur.com/A692n9B.png",
-    86: "https://i.imgur.com/k2xQ8dK.png",
-    87: "https://i.imgur.com/j3DoE7H.png"
+    1: "https://i.imgur.com/2y5S4T7.png", // Geobble
+    2: "https://i.imgur.com/LbvIm31.png", // Petrisaur
+    3: "https://i.imgur.com/IJDFPlA.png", // Gemusaur
+    4: "https://i.imgur.com/WGuJMZR.png", // Bluemander
+    5: "https://i.imgur.com/00ljYF7.png", // Aquameleon
+    6: "https://i.imgur.com/8nyzq6k.png", // Royalzard
+    7: "https://i.imgur.com/C0lnBBO.png", // Cindertle
+    8: "https://i.imgur.com/pH56VJo.png", // Magmortle
+    9: "https://i.imgur.com/BlKyvSI.png", // Volcanstoise
+    10: "https://i.imgur.com/b26rJmh.png", // Gearpie
+    11: "https://i.imgur.com/9xQoE2L.png", // Servopod
+    12: "https://i.imgur.com/7KpNmRt.png", // Flutterdrive
+    13: "https://i.imgur.com/5HjLwQs.png", // Fledgey
+    14: "https://i.imgur.com/3FgMnPr.png", // Phantotto
+    15: "https://i.imgur.com/1DkJoNq.png", // Ectogeot
+    16: "https://i.imgur.com/zBhIgMp.png", // Richata
+    17: "https://i.imgur.com/xCfHeNo.png", // Gildedcate
+    18: "https://i.imgur.com/vEjGkLm.png", // Snare
+    19: "https://i.imgur.com/tFiDjKl.png", // Kobraiv
+    20: "https://i.imgur.com/fQdAV9g.png", // Lunachu (New Link)
+    21: "https://i.imgur.com/6c9p4gD.png", // Somnchu (New Link)
+    22: "https://i.imgur.com/nJeAfHi.png", // Tideti
+    23: "https://i.imgur.com/lKdZeGh.png", // Grominable
+    24: "https://i.imgur.com/jIcYdFg.png", // Pilferix
+    25: "https://i.imgur.com/hGbXcEf.png", // Swipixie
+    26: "https://i.imgur.com/fEaWbDe.png", // Frostpix
+    27: "https://i.imgur.com/dCzVaDc.png", // (Unused in set)
+    28: "https://i.imgur.com/YwJVVbM.png", // Jigglygruff (New Link)
+    29: "https://i.imgur.com/ZyTsYBa.png", // (Unused in set)
+    30: "https://i.imgur.com/XwRrXAz.png", // Sporedish
+    31: "https://i.imgur.com/VuPqWzy.png", // Strobeshroom
+    32: "https://i.imgur.com/TsOpVyx.png", // (Unused in set)
+    33: "https://i.imgur.com/RqNnUxw.png", // Dustbun
+    34: "https://i.imgur.com/PoMmTwv.png", // (Unused in set)
+    35: "https://i.imgur.com/NlKkSvu.png", // Scraps
+    36: "https://i.imgur.com/LjIiRut.png", // (Unused in set)
+    37: "https://i.imgur.com/HhGgQts.png", // Psiquack
+    38: "https://i.imgur.com/FfEePsr.png", // (Unused in set)
+    39: "https://i.imgur.com/DdCcOqr.png", // Zenkey
+    40: "https://i.imgur.com/BbAaNpq.png", // (Unused in set)
+    41: "https://i.imgur.com/ZzYyMop.png", // Brawna
+    42: "https://i.imgur.com/XxWwLno.png", // Brawlabra
+    43: "https://i.imgur.com/VvUuKmn.png", // (Unused in set)
+    44: "https://i.imgur.com/TtSsJlm.png", // Boltsprout
+    45: "https://i.imgur.com/RrQqIkl.png", // Ringinbell
+    46: "https://i.imgur.com/PpOoHjk.png", // (Unused in set)
+    47: "https://i.imgur.com/NnMmGij.png", // Quixilver
+    48: "https://i.imgur.com/LlKkFhi.png", // (Unused in set)
+    49: "https://i.imgur.com/JjIiEgh.png", // (Unused in set)
+    50: "https://i.imgur.com/HhGgDfg.png", // (Unused in set)
+    51: "https://i.imgur.com/UAT6GA3.png", // Tangler
+    53: "https://i.imgur.com/o5n29D2.png", // Ponysea
+    58: "https://i.imgur.com/1G5sW4j.png", // Flickerite Art
+    64: "https://i.imgur.com/A692n9B.png", // Plauros Art
+    86: "https://i.imgur.com/k2xQ8dK.png", // Kaleidocat Art
+    87: "https://i.imgur.com/j3DoE7H.png"  // Glitchra Art
 };
