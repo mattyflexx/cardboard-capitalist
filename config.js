@@ -8,8 +8,7 @@ export const ASSETS = {
 
 /**
  * Defines the coordinates for text boxes on different card layouts.
- * The 'fullArt' layout now has coordinates for the nameplate,
- * fulfilling a Tier 2 roadmap goal.
+ * The 'fullArt' layout now has coordinates for the nameplate.
  */
 export const LAYOUT_BLUEPRINTS = {
     standard: {
@@ -104,7 +103,7 @@ export const TCG_SETS = {
 
 /**
  * Maps a Doodlemon's dex number to its default artwork URL.
- * This has been updated to include all Doodlemon from the Genesis set.
+ * FIXED: This map is now complete for all Doodlemon in the Genesis set.
  */
 export const DOODLEMON_ART = {
     1: "https://i.imgur.com/8B1K9Pm.png",
