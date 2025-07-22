@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Doodlemon Art Generator</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+min-height: 100vh;
+padding: 20px;
+}
+.container {
+max-width: 1200px;
+margin: 0 auto;
+background: white;
+border-radius: 15px;
+box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+overflow: hidden;
+}
+.header {
+background: linear-gradient(135deg, #ff6b6b, #feca57);
+color: white;
+padding: 30px;
+text-align: center;
+}
+.header h1 { font-size: 2.5rem; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+.header p { font-size: 1.1rem; opacity: 0.9; }
+.main-content {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 30px;
+padding: 30px;
+}
+.controls-section { display: flex; flex-direction: column; gap: 20px; }
+.form-group { display: flex; flex-direction: column; gap: 8px; }
+.form-group label {
+font-weight: 600;
+color: #333;
+font-size: 0.95rem;
+}
+.form-group select,
+.form-group input,
+.form-group textarea {
+padding: 12px;
+border: 2px solid #e1e5e9;
+border-radius: 8px;
+font-size: 1rem;
+transition: border-color 0.3s ease;
+}
+.form-group select:focus,
+.form-group input:focus,
+.form-group textarea:focus {
+outline: none;
+border-color: #667eea;
+box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+.form-group textarea { resize: vertical; min-height: 80px; }
+.generate-btn {
+background: linear-gradient(135deg, #667eea, #764ba2);
+color: white;
+border: none;
+padding: 15px 30px;
+border-radius: 8px;
+font-size: 1.1rem;
+font-weight: 600;
+cursor: pointer;
+transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.generate-btn:hover:not(:disabled) {
+transform: translateY(-2px);
+box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+.generate-btn:disabled {
+opacity: 0.6;
+cursor: not-allowed;
+}
+.preview-section { display: flex; flex-direction: column; gap: 20px; }
+.card-layout-controls {
+display: flex;
+flex-direction: column;
+gap: 10px;
+padding: 15px;
+background: #f8f9fa;
+border-radius: 8px;
+}
+.dimension-info { font-size: 0.9rem; color: #666; }
+#art-preview-container {
+position: relative;
+width: 400px;
+height: 400px;
+border: 2px dashed #ddd;
+border-radius: 8px;
+overflow: hidden;
+margin: 0 auto;
+background: #f8f9fa;
+}
+#art-preview-placeholder {
+display: flex;
+align-items: center;
+justify-content: center;
+height: 100%;
+color: #999;
+font-size: 1.1rem;
+}
+#art-preview-img {
+width: 100%;
+height: 100%;
+object-fit: cover;
+}
+.loader {
+display: flex;
+align-items: center;
+justify-content: center;
+height: 100%;
+flex-direction: column;
+gap: 15px;
+}
+.spinner {
+width: 40px;
+height: 40px;
+border: 4px solid #f3f3f3;
+border-top: 4px solid #667eea;
+border-radius: 50%;
+animation: spin 1s linear infinite;
+}
+@keyframes spin {
+0% { transform: rotate(0deg); }
+100% { transform: rotate(360deg); }
+}
+.download-section { display: flex; flex-direction: column; gap: 15px; }
+.download-buttons { display: flex; gap: 10px; }
+.download-btn {
+flex: 1;
+padding: 12px 20px;
+border: none;
+border-radius: 8px;
+font-weight: 600;
+cursor: pointer;
+transition: all 0.2s ease;
+}
+.download-original { background: #28a745; color: white; }
+.download-original:hover { background: #218838; transform: translateY(-1px); }
+.download-cropped { background: #007bff; color: white; }
+.download-cropped:hover { background: #0056b3; transform: translateY(-1px); }
+.download-help {
+font-size: 0.9rem;
+color: #666;
+padding: 10px;
+background: #e9ecef;
+border-radius: 6px;
+}
+.crop-guide {
+position: absolute;
+border: 2px solid #007bff;
+background: rgba(0, 123, 255, 0.1);
+cursor: move;
+z-index: 10;
+}
+.crop-guide::before {
+content: 'Card Area';
+position: absolute;
+top: -25px;
+left: 0;
+background: #007bff;
+color: white;
+padding: 2px 8px;
+border-radius: 4px;
+font-size: 0.8rem;
+white-space: nowrap;
+}
+.resize-handle {
+position: absolute;
+width: 10px;
+height: 10px;
+background: #007bff;
+border: 1px solid white;
+}
+.resize-handle.top-left { top: -5px; left: -5px; cursor: nw-resize; }
+.resize-handle.top-right { top: -5px; right: -5px; cursor: ne-resize; }
+.resize-handle.bottom-left { bottom: -5px; left: -5px; cursor: sw-resize; }
+.resize-handle.bottom-right { bottom: -5px; right: -5px; cursor: se-resize; }
+.crop-info {
+font-size: 0.85rem;
+color: #666;
+background: #f8f9fa;
+padding: 10px;
+border-radius: 6px;
+}
+.hidden { display: none !important; }
+.toast-container {
+position: fixed;
+top: 20px;
+right: 20px;
+z-index: 1000;
+}
+.toast {
+background: #333;
+color: white;
+padding: 12px 20px;
+border-radius: 8px;
+margin-bottom: 10px;
+opacity: 0;
+transform: translateX(100%);
+transition: all 0.3s ease;
+max-width: 300px;
+}
+.toast.show { opacity: 1; transform: translateX(0); }
+.toast.success { background: #28a745; }
+.toast.error { background: #dc3545; }
+.toast.info { background: #17a2b8; }
+@media (max-width: 768px) {
+.main-content {
+grid-template-columns: 1fr;
+gap: 20px;
+padding: 20px;
+}
+.header h1 { font-size: 2rem; }
+#art-preview-container { width: 100%; max-width: 400px; }
+.download-buttons { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+<div id="toast-container" class="toast-container"></div>
+<div class="container">
+<div class="header">
+<h1>🎨 Doodlemon Art Generator</h1>
+<p>Create professional TCG artwork for your Doodlemon cards</p>
+</div>
+<div class="main-content">
+<div class="controls-section">
+<div class="form-group">
+<label for="api-key-input">Gemini API Key:</label>
+<input type="password" id="api-key-input" placeholder="Enter your Gemini API key"/>
+</div>
+<div class="form-group">
+<label for="doodledex-select">Choose Doodlemon:</label>
+<select id="doodledex-select">
+<option value="">-- Choose a creature --</option>
+</select>
+</div>
+<div class="form-group">
+<label for="dna-prompt">Creature DNA (auto-filled):</label>
+<textarea id="dna-prompt" readonly placeholder="Select a Doodlemon to see its DNA description..."></textarea>
+</div>
+<div class="form-group">
+<label for="style-prompt">Art Style:</label>
+<textarea id="style-prompt" placeholder="Describe the art style..."></textarea>
+</div>
+<div class="form-group">
+<label for="scene-prompt">Scene Description:</label>
+<textarea id="scene-prompt" placeholder="Describe the scene, pose, background, lighting..."></textarea>
+</div>
+<button id="generate-art-btn" class="generate-btn">🎨 Generate Art</button>
+</div>
+<div class="preview-section">
+<div class="card-layout-controls">
+<div class="form-group">
+<label for="card-layout-select">Card Layout:</label>
+<select id="card-layout-select">
+<option value="PORTRAIT">Full Art (Portrait) - 288x400px</option>
+<option value="LANDSCAPE">2nd Edition (Landscape) - 400x300px</option>
+<option value="SQUARE">1st Edition (Square) - 400x400px</option>
+</select>
+</div>
+<div id="dimension-info" class="dimension-info"></div>
+</div>
+<div id="art-preview-container">
+<div id="art-preview-placeholder">
+Generate art to see preview
+</div>
+<img id="art-preview-img" class="hidden" alt="Generated Art"/>
+<div id="art-loader" class="loader hidden">
+<div class="spinner"></div>
+<div>Generating artwork...</div>
+</div>
+<div id="crop-guide" class="crop-guide" style="display: none;">
+<div class="resize-handle top-left"></div>
+<div class="resize-handle top-right"></div>
+<div class="resize-handle bottom-left"></div>
+<div class="resize-handle bottom-right"></div>
+</div>
+</div>
+<div id="crop-info" class="crop-info hidden">
+<div><strong>Crop Guide:</strong></div>
+<div>Dimensions: <span id="crop-dimensions">0x0px</span></div>
+<div>Position: <span id="crop-position">0, 0</span></div>
+<div class="mt-1">Card size: <span id="exact-dimensions">0x0px</span></div>
+</div>
+<div class="download-section">
+<div class="download-buttons">
+<button id="download-original-btn" class="download-btn download-original hidden">
+📥 Download Original
+</button>
+<button id="download-cropped-btn" class="download-btn download-cropped hidden">
+✂️ Download Cropped
+</button>
+</div>
+<div id="download-help" class="download-help hidden">
+<strong>💡 Tip:</strong> Use the blue crop guide to position the card area, then download the cropped version for perfect card dimensions.
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+function getStandardDoodlemonFilename(id, name, suffix = "") {
+const idPadded = String(id).padStart(3, '0');
+const nameFormatted = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+return `[${idPadded}]-${nameFormatted}${suffix}.png`;
+}
+
+// --- All 87 Doodlemon ---
+const DOODLEMON_DNA = {
+1: { name: "Geobble", dna: "A small, bipedal, reptilian creature with a very friendly and curious demeanor. Its body is stout and chubby, similar to a baby dinosaur, with smooth, lime-green skin. It has large, round, solid black eyes and a simple, happy, toothless mouth. Its most defining feature is a perfectly round, heavy-looking brown geode fused to its back, which has a single, clean, vertical crack down its center." },
+2: { name: "Petrisaur", dna: "The evolved form of Geobble, now larger and more robust. Its skin has darkened to a forest-green. The geode on its back has widened, revealing sparkling, purple amethyst crystal formations lining the inside. Its eyes are still large and black but have a sharper, more intelligent shape, and small, white, tooth-like nubs are now visible along its upper jaw." },
+3: { name: "Gemusaur", dna: "The final evolution, a large and powerful creature. Its form is thick and muscular, with tough, scaly, emerald-green skin. The geode on its back has bloomed into a massive, dazzling cluster of sharp, vibrant, purple amethyst crystals. Its eyes are now a piercing amethyst purple, and it has a full set of sharp, white teeth, giving it a majestic appearance." },
+4: { name: "Bluemander", dna: "A small, amphibious, lizard-like creature with a sleek, vibrant azure blue body. It stands on four limbs with slightly webbed feet. Its most defining characteristic is its perpetually puffed-out cheeks, as if it's constantly gargling water. Its belly is a lighter, sky-blue color, and it has large, round, friendly, solid black eyes." },
+5: { name: "Aquameleon", dna: "The evolved form of Bluemander, now larger and longer. Its body is a deeper, aquatic blue-green. The fin-crest on its head is more pronounced, resembling a classic sea-serpent's fin. Its cheeks are no longer puffed, giving it a more serious expression, and its eyes are a bright yellow with a sharp, horizontal pupil." },
+6: { name: "Royalzard", dna: "A large, powerful, four-legged creature resembling a wingless dragon. Its body is deep blue with light grey armored plates on its back and legs. It has a magnificent crown of yellow fins on its head and a strong, finned tail." },
+7: { name: "Cindertle", dna: "A small, four-legged turtle creature. Its skin is a dark, charcoal-gray with a slightly rough, stony texture. Its shell resembles a miniature, dormant volcano, complete with a single caldera-like vent at the very top that occasionally puffs wisps of faint gray smoke. Its eyes are a bright, glowing orange, like embers." },
+8: { name: "Magmortle", dna: "The evolved form of Cindertle. The volcanic shell now has multiple vents that glow with orange light. It can shoot small, sputtering globs of magma, and its beak-like mouth is more pronounced and jagged." },
+9: { name: "Volcanstoise", dna: "The final evolution. Instead of water cannons, two massive, molten-rock vents protrude from its shell, glowing cherry-red with heat. It stands lower to the ground, braced by its thick, powerful legs, and radiates an intense aura of heat." },
+10: { name: "Gearpie", dna: "A small, metallic larva that looks like a caterpillar made of mismatched copper and iron segments. It has two large, simple, black optic sensors for eyes and chews on scrap metal with two pincer-like mandibles." },
+11: { name: "Servopod", dna: "The evolved form of Gearpie. It is a hardened, steel-alloy cocoon, smooth and ovular, with glowing blue seams. It hums with the sound of internal motors and occasionally vibrates." },
+12: { name: "Flutterdrive", dna: "The final evolution. A mechanical moth with intricate, whirring propeller wings made of polished brass. Its body is segmented chrome, and its head has two large, multifaceted, glowing red optic sensors." },
+13: { name: "Fledgey", dna: "A small, sparrow-sized bird whose body appears to be made of pale, translucent, shimmering ectoplasm. It can phase through solid objects, making it look like a ghost. Its eyes are two simple, hollow black ovals." },
+14: { name: "Phantotto", dna: "The evolved form of Fledgey. It is now the size of a hawk, its spectral body more defined and less translucent. It leaves a visible trail of cold, misty air in its wake, and its form has developed sharp, feather-like edges." },
+15: { name: "Ectogeot", dna: "The final evolution. A terrifyingly fast, large, spectral eagle. Its form is a blur of white and gray ectoplasm, and its cry is a high-pitched, sorrowful wail that can be heard for miles. Its eyes glow with a menacing red light." },
+16: { name: "Richata", dna: "A pampered, chinchilla-like rodent with an impeccably polished, shiny grey coat. It is adorned with a tiny, velvet collar that has a small, golden bell. It has a snooty, upturned nose and large, dark eyes." },
+17: { name: "Gildedcate", dna: "The evolved form of Richata. It has grown larger, and its whiskers have become long, trailing threads of pure gold. Its teeth are now encrusted with small, sparkling gems, and it carries its tail high with an air of superiority." },
+18: { name: "Snare", dna: "A snake made of living, intertwined green vines and broad leaves, allowing it to blend perfectly with jungle floors. Its eyes are two small, bright red berries, and its forked tongue is a sprouting tendril." },
+19: { name: "Kobraiv", dna: "The evolved form of Snare. It has become a terrifying cobra whose 'hood' is a large, blooming, carnivorous flower. The flower's petals are a vibrant pink with green, thorny vines integrated into their structure. Its eyes are menacing, narrow yellow slits, and long, sharp fangs drip with a sweet-smelling nectar." },
+20: { name: "Lunachu", dna: "A perpetually sleepy, bipedal creature resembling a fennec fox. Its body is chubby and covered in soft, pale lavender fur. Its most notable features are its very long, rabbit-like ears with dark purple tips and two perfectly circular, glowing, silver cheeks that store psychic energy. Its eyes are almost always closed, and its mouth is often open in a wide yawn." },
+21: { name: "Somnchu", dna: "The evolved form of Lunachu. It now floats just above the ground, having mastered its psychic, dream-like energy. Its lavender fur has a faint, ethereal glow. Its eyes are open, revealing a calm, knowing, deep purple iris. The silver circles on its cheeks hum with visible psychic energy." },
+22: { name: "Tideti", dna: "A small, bipedal creature resembling a fluffy, white baby yeti. It has a round body, stubby limbs, and two small, curved horns on its head. Its face is mostly covered in fur, with only two large, curious, bright blue eyes peeking out. It often waddles around playfully." },
+23: { name: "Grominable", dna: "The evolved form of Tideti. It is now a large, imposing, yeti-like beast with shaggy white fur and two massive, spiraling horns made of pure ice. Its hands have grown into huge paws with thick, blunt claws, and its bright blue eyes now have a fierce, protective gaze." },
+24: { name: "Pilferix", dna: "A mischievous, small pixie with insect-like, translucent wings. It has pointed ears and a sly grin. It is constantly looking for small, shiny objects to snatch and hoard in its tiny satchel." },
+25: { name: "Swipixie", dna: "The evolved form of Pilferix. A master trickster that uses its advanced illusionary abilities to lead travelers astray for its own amusement. Its wings are larger and more colorful, and it wears a hood fashioned from a large leaf." },
+26: { name: "Frostpix", dna: "A small arctic fox with a pure white coat. Its most striking feature is its six fluffy tails, each appearing to be made of shimmering, crystalline frost that glitters in the light." },
+27: { name: "Aurorealis", dna: "The evolved form of Frostpix. It has grown into a large, elegant fox. Its nine tails have become a living, flowing aurora borealis, trailing behind it and painting the air with shifting curtains of ethereal green, pink, and purple light." },
+28: { name: "Jigglygruff", dna: "A round, pink creature with small, pointed ears and large blue eyes. Its song is not a lullaby, but a low, guttural rock-and-roll scream that makes listeners want to headbang. It often carries a small, crudely drawn-on lightning bolt on its forehead." },
+29: { name: "Wigglyruff", dna: "The evolved form of Jigglygruff. It has become a rowdy, tough creature with a leathery, slightly darker pink hide and an aggressive stage presence. It has a small mohawk of spiky hair and is often seen stomping its feet to a beat only it can hear." },
+30: { name: "Sporedish", dna: "A small, pale white mushroom that walks around on two stubby, root-like legs. It has no visible face, but the cap has two simple, black dot-eyes. It leaves a trail of faintly glowing green spores as it moves." },
+31: { name: "Strobeshroom", dna: "The evolved form of Sporedish. It is now a taller mushroom whose cap flashes with shifting, multicolored, bioluminescent patterns. It drools a potent, glowing neurotoxin from beneath its cap." },
+32: { name: "Doomplume", dna: "The final evolution. A massive, ghostly fungus that barely moves. Its giant cap is a dark, ominous purple, and it constantly releases a thick, swirling cloud of hypnotic spores that can take control of other Doodlemon." },
+33: { name: "Dustbun", dna: "A small, perfectly round creature that looks like a common household dust bunny. It has two large, googly eyes that poke out from its fluffy, grey, dusty body. It rolls and bounces to move, often hiding under furniture." },
+34: { name: "Dustomite", dna: "The evolved form of Dustbun. It is a much larger, chaotic vortex of dust, lint, and small, lost objects like buttons and paperclips. In the center of the swirling mass are two menacing, glowing red eyes." },
+35: { name: "Scraps", dna: "A scruffy, grey-and-white alley cat with one torn ear and a perpetually unimpressed expression. It has a bent, rusty bottle cap stuck to its forehead where a psychic gem might be on a fancier creature." },
+36: { name: "Alleyan", dna: "The evolved form of Scraps. A cunning and tough brawler, it stands on its hind legs and has a muscular build. It's the undisputed leader of a pack of street-smart Scraps, often wearing a tiny, torn vest made of scrap leather." },
+37: { name: "Psiquack", dna: "A perpetually calm and collected rubber duck. It is bright yellow and holds its head with one of its stubby wings, not from pain, but in deep, thoughtful contemplation. It floats serenely, even on dry land." },
+38: { name: "Cerebrol", dna: "The evolved form of Psiquack. Its psychic powers are fully unlocked. While still resembling a rubber duck, its head is now disproportionately large and its eyes glow with a constant, soft blue psychic energy. It can move objects with its mind." },
+39: { name: "Zenkey", dna: "A calm, zen-like monkey with light brown fur. It sits in a meditative lotus position, its eyes closed and hands resting on its knees. It practices a unique form of meditative martial arts, focusing on inner peace and fluid movement." },
+40: { name: "Sereneape", dna: "The evolved form of Zenkey. It has achieved true inner peace and only uses its immense power for defense. It is now a large, gorilla-like creature with wise, gentle eyes, and it moves with a slow, deliberate grace that belies its incredible strength." },
+41: { name: "Brawna", dna: "A physically bulky, humanoid creature with thick, muscular arms and a small head. Its skin is a tough, brownish-grey. It can teleport short distances with a loud *POP*, but it prefers to just lift and throw heavy things with a grunt." },
+42: { name: "Brawlabra", dna: "The evolved form of Brawna. It has grown another pair of muscular arms and carries a bent, rusty iron girder instead of a spoon, which it can tie into a knot with its bare hands." },
+43: { name: "Alakablam", dna: "The final evolution. A master of physical combat, this imposing creature has two massive, well-defined arms and can shatter boulders with a single, focused punch. Its skin is like granite, and it has a determined, focused expression." },
+44: { name: "Boltsprout", dna: "A small plant that resembles a seedling. Its green leaves are veined with what looks like exposed copper wire, and its two roots are metallic, sparking faintly when they touch the ground." },
+45: { name: "Ringinbell", dna: "The evolved form of Boltsprout. Its body has taken the form of a large, rusted metal bell with legs. It traps prey by slamming its bell-body down over them, creating a deafening clang." },
+46: { name: "Victrapel", dna: "The final evolution. A massive, metallic pitcher plant whose 'mouth' is lined with razor-sharp, interlocking metal edges, acting as an inescapable bear trap. It lures prey with a faint, sweet smell." },
+47: { name: "Quixilver", dna: "A massive serpent made entirely of flowing, liquid mercury. Its body constantly shifts and reforms, and it has two bright, solid red gemstones for eyes that float within its metallic head." },
+48: { name: "Glimmer", dna: "A creature formed from a cluster of living, purifying pink and white quartz crystals. It moves slowly, and any area it touches is left cleaner and purer than before. It emits a soft, gentle hum." },
+49: { name: "Krystuk", dna: "The evolved form of Glimmer. A large, beautiful golem made of perfectly clear, interlocking crystals. Despite its sharp, geometric appearance, it is surprisingly gentle and kind, often seen protecting smaller creatures." },
+50: { name: "Carapace", dna: "A small, six-legged insectoid creature that wears the hollowed-out, slightly-too-large exoskeleton of its previous self as armor. It peeks out from the head-hole of its old shell with large, timid eyes." },
+51: { name: "Tangler", dna: "A chaotic, walking mess of sentient, sparking electrical wires and data cables of various colors (red, blue, yellow, black). Two frayed wires act as 'eyes,' sparking with electricity when it gets agitated." },
+52: { name: "Kangasmind", dna: "This is a two-part creature. The main body is a large, bipedal, kangaroo-like beast with a tough, brown, leathery hide and powerful hind legs. It is docile and has simple, vacant-looking black eyes. The 'baby' sitting in its pouch is the true intelligence, a small, pink creature with an enormous, pulsating, veiny brain who is furiously operating a set of tiny joysticks and levers." },
+53: { name: "Ponysea", dna: "A creature that looks like a tiny, stout land pony with a coat the color of wet sand. It sweats pure, clean spring water, and its mane and tail appear to be made of flowing water. It can find underground water sources by stomping its hoof." },
+54: { name: "Geyserdra", dna: "The evolved form of Ponysea. It now gallops across plains, its mane and tail having become a magnificent plume of steam and mist. It can shoot powerful, heated geysers from its snout with great force." },
+55: { name: "Jeweling", dna: "The evolved form of Ponysea. Its body is made of living, polished gold, and its horn has grown into a massive, perfectly cut, sparkling ruby. It is incredibly rare and sought after by treasure hunters." },
+56: { name: "Teapup", dna: "A small, shy creature that resembles a puppy, but its body is made of cracked, white porcelain. It hides inside a slightly-too-large, chipped teapot for protection, with only its head and tail sticking out." },
+57: { name: "Kettlehound", dna: "The evolved form of Teapup. It has outgrown its pot and now stands as a proud, hound-like creature made of gleaming, polished ceramic. It can whistle like a boiling kettle and shoot jets of scalding steam from its mouth." },
+58: { name: "Flickerite", dna: "A creature whose body is an old-fashioned, hand-cranked film projector. It walks on a small tripod and its lens-eye projects silent, black-and-white images onto any surface to communicate." },
+59: { name: "Prunther", dna: "A gentle and elegant creature resembling a praying mantis. Its body is a leafy green color, and its limbs are long and stick-like. Instead of claws, its two primary forelimbs are a pair of incredibly sharp, metallic, silver-colored pruning shears, which it uses to expertly trim plants into beautiful topiaries." },
+60: { name: "Lorelei", dna: "A beautiful siren-like creature with long, flowing blue-green hair and a fish-like tail. She sits on sea rocks and sings an enchanting song that can calm even the most ferocious sea storms and guide lost sailors." },
+61: { name: "Siphohm", dna: "It doesn't produce electricity; it consumes it. This creature looks like a large, spiky, blue and yellow rodent with a long, copper-tipped tail that it inserts into electrical sockets. Its fur is rubbery and insulated, and it often has a dazed, overcharged look in its eyes." },
+62: { name: "Cryomar", dna: "A creature that lives in frozen volcanoes. Its body is formed from jagged, black volcanic rock covered in a thick layer of sharp, blue-white ice. It breathes out a freezing mist, and its eyes glow from deep within its rocky head." },
+63: { name: "Polarsir", dna: "The evolved form of Cryomar. Its horn has become a giant, powerful U-shaped electromagnet. It can use magnetic fields to attract or violently repel metallic objects, and its body is constantly surrounded by a faint magnetic shimmer." },
+64: { name: "Plauros", dna: "A calm, placid bull-like creature with a smooth, brown coat and a single, smooth, polished white horn in the center of its forehead. Its long, flowing tail ends in a soft tuft of hair, and it is known for its serene and peaceful nature, often found meditating in fields." },
+65: { name: "Grubble", dna: "Considered incredibly weak, it's a small, stone-like grub that does little more than inch along the ground, nibbling on minerals. Its body is grey and lumpy, resembling a simple pebble with two beady eyes." },
+66: { name: "Saigados", dna: "Instead of a raging sea serpent, Grubble evolves into a small, wise, and incredibly powerful sage-like dragon. It floats peacefully, its body long and serpentine but made of smooth, white stone. Its eyes glow with ancient wisdom, and it speaks telepathically." },
+67: { name: "Duneas", dna: "A gentle giant that resembles a tortoise with a massive, sandy shell that looks like a miniature desert dune. It ferries travelers across vast deserts, storing immense amounts of water within its shell, which it can share with those in need." },
+68: { name: "Runestone", dna: "A creature that looks like a large, moss-covered standing stone. It is vaguely humanoid in shape and has ancient, glowing blue runes carved into its surface. It moves very slowly and is often mistaken for a simple landmark until it shifts its position." },
+69: { name: "Spookee", dna: "A small, timid ghost-like creature that appears to be made of a translucent, pale white sheet, like a classic cartoon ghost. It is always shivering, with visible 'shiver lines' drawn around it to indicate its constant state of fear. Its eyes are two large, hollow black ovals wide with fright." },
+70: { name: "Vaporgeist", dna: "The evolved form of Spookee. It has learned to control its form, evolving into a being of hot, swirling steam and mist. It haunts saunas, hot springs, and foggy areas, enjoying the warmth." },
+71: { name: "Poltergeon", dna: "The final evolution. A being of pure, chaotic electrical energy, resembling a crackling ball of lightning with two mischievous eyes inside. It zips through walls and delights in causing electronics to go haywire." },
+72: { name: "Phantareon", dna: "An alternate evolution of Spookee. It has become a classic will-o'-the-wisp, a single, flickering, ghostly blue flame with a curious, friendly face within it. It floats silently and leads lost travelers to safety." },
+73: { name: "Papygon", dna: "A creature whose body is made of intricately folded paper, like complex origami. It is animated by flowing ink drawings that shift across its surface. It moves with a jerky, stop-motion-like animation." },
+74: { name: "Omandroid", dna: "A futuristic, robotic deep-sea explorer drone, not an ancient fossil. It has a spherical, metallic body with multiple robotic arms equipped with claws and sensors, and a single, large, glowing blue optic lens on the front." },
+75: { name: "Omastrome", dna: "The evolved form of Omandroid. The drone has become a powerful, sentient weather-control machine. It is now much larger, with a swirling vortex of water and energy at its core, and it can create massive maelstroms at will." },
+76: { name: "Gourdo", dna: "A jolly and adorable symbiotic creature that lives inside a hard, hollowed-out gourd for protection. The creature itself is a small, green, leafy being with a perpetually happy face, peeking out from a hole in the gourd." },
+77: { name: "Kabutopsin", dna: "The evolved form of Gourdo. The creature integrates fully with its gourd, which becomes a suit of armor. Sharp, vine-like blades sprout from its arms, and its expression becomes more fierce and battle-ready." },
+78: { name: "Avesdactyl", dna: "A 'restored' fossil Doodlemon that is more scientifically accurate than its cartoonish counterparts. It is covered in intimidating, dark-colored feathers, has a sharp, bird-like beak filled with small teeth, and a fierce, raptor-like demeanor." },
+79: { name: "Fitlax", dna: "A hyperactive, wiry creature that never stops moving. It is constantly seen jogging in place, has a lean, athletic build, wears a sweatband on its forehead, and is impossible to tire out." },
+80: { name: "Plasmuno", dna: "A legendary bird whose body is composed of raw, shimmering, red and orange plasma, resembling a miniature sun. It leaves a trail of superheated air in its wake, and looking at it directly is difficult." },
+81: { name: "Vapordos", dna: "A legendary bird made of a swirling, noxious green and purple gas. Its form is indistinct and constantly shifting. Its flapping wings are silent but release a visible, paralytic toxin into the air." },
+82: { name: "Crysoltres", dna: "A legendary bird made of solid, sharp, translucent blue crystals. Its wings are geometric and create a sound like shattering glass as it flies, refracting light into beautiful, disorienting patterns." },
+83: { name: "Inkpuddle", dna: "A small, harmless puddle of black, sentient ink with two simple white eyes floating on its surface. It can slowly slide across flat surfaces." },
+84: { name: "Inkling", dna: "The evolved form of Inkpuddle. It has formed a more solid, squid-like body from the ink. It has several simple tentacles and can now squirt ink as a defense mechanism." },
+85: { name: "Krakenprint", dna: "The final evolution. A massive, terrifying kraken made of living, dripping black ink. It can change its shape, sprouting countless tentacles, and its touch leaves a permanent, smudged stain on anything it touches." },
+86: { name: "Kaleidocat", dna: "A legendary creature with the playful, curious demeanor of a kitten. Its body is not made of flesh, but of shifting, interlocking pieces of colored stained glass, held together by an internal, pure white light. It moves with a faint, melodic chiming sound." },
+87: { name: "Glitchra", dna: "A legendary creature believed to be a digital being that escaped into the physical world. Its form is unstable, constantly glitching and distorting between a vaguely draconic shape and a chaotic mess of pixels, static, and corrupted data. It speaks in a garbled mix of dial-up modem sounds and distorted audio clips." }
+};
+
+// --- Card Layouts ---
+const CARD_LAYOUTS = {
+SQUARE: { width: 400, height: 400, name: "1st Edition (Square)" },
+LANDSCAPE: { width: 400, height: 300, name: "2nd Edition (Landscape)" },
+PORTRAIT: { width: 288, height: 400, name: "Full Art (Portrait)" }
+};
+
+let generatedImageUrl = null;
+let currentImageElement = null;
+const DEFAULT_STYLE_PROMPT = "Professional TCG art style, clean vector illustration, bold dynamic outlines, vibrant colors, simple cell shading and highlights";
+
+const elements = {
+doodledexSelect: document.getElementById('doodledex-select'),
+dnaPrompt: document.getElementById('dna-prompt'),
+stylePrompt: document.getElementById('style-prompt'),
+scenePrompt: document.getElementById('scene-prompt'),
+generateArtBtn: document.getElementById('generate-art-btn'),
+artLoader: document.getElementById('art-loader'),
+artPreviewPlaceholder: document.getElementById('art-preview-placeholder'),
+artPreviewImg: document.getElementById('art-preview-img'),
+downloadOriginalBtn: document.getElementById('download-original-btn'),
+downloadCroppedBtn: document.getElementById('download-cropped-btn'),
+downloadHelp: document.getElementById('download-help'),
+cardLayoutSelect: document.getElementById('card-layout-select'),
+cropGuide: document.getElementById('crop-guide'),
+cropInfo: document.getElementById('crop-info'),
+cropDimensions: document.getElementById('crop-dimensions'),
+cropPosition: document.getElementById('crop-position'),
+dimensionInfo: document.getElementById('dimension-info'),
+exactDimensions: document.getElementById('exact-dimensions'),
+apiKeyInput: document.getElementById('api-key-input'),
+toastContainer: document.getElementById('toast-container')
+};
+
+function initialize() {
+populateSelectors();
+elements.stylePrompt.value = DEFAULT_STYLE_PROMPT;
+setPreviewLayout(elements.cardLayoutSelect.value);
+setupCropGuideInteraction();
+const savedApiKey = localStorage.getItem('geminiApiKey');
+if (savedApiKey) elements.apiKeyInput.value = savedApiKey;
+}
+function setPreviewLayout(layout) {
+const layoutConfig = CARD_LAYOUTS[layout];
+elements.dimensionInfo.innerHTML = `<div><strong>${layoutConfig.name} (${layoutConfig.width}x${layoutConfig.height}px):</strong> ${getLayoutDescription(layout)}</div>
+<div class="mt-1 text-xs text-gray-400">Aspect ratio: ${(layoutConfig.width/layoutConfig.height).toFixed(2)}:1</div>`;
+elements.exactDimensions.textContent = `${layoutConfig.width}x${layoutConfig.height}px`;
+_setCropGuideDimensions(layoutConfig.width, layoutConfig.height, 0, 0);
+elements.cropGuide.style.display = 'block';
+updateCropInfo();
+}
+function getLayoutDescription(layout) {
+switch(layout) {
+case 'SQUARE': return 'Classic square card format';
+case 'LANDSCAPE': return 'Wide landscape card format';
+case 'PORTRAIT': return 'Standard TCG card image area';
+default: return 'Card format';
+}
+}
+function _setCropGuideDimensions(width, height, top, left) {
+elements.cropGuide.style.width = `${width}px`;
+elements.cropGuide.style.height = `${height}px`;
+elements.cropGuide.style.top = `${top}px`;
+elements.cropGuide.style.left = `${left}px`;
+}
+function updateCropInfo() {
+const layout = CARD_LAYOUTS[elements.cardLayoutSelect.value];
+elements.cropDimensions.textContent = `${layout.width}x${layout.height}px`;
+elements.cropPosition.textContent = `${elements.cropGuide.offsetLeft}, ${elements.cropGuide.offsetTop}`;
+}
+function populateSelectors() {
+elements.doodledexSelect.innerHTML = '<option value="">-- Choose a creature --</option>';
+for (const id in DOODLEMON_DNA) {
+elements.doodledexSelect.innerHTML += `<option value="${id}">${String(id).padStart(3,'0')}: ${DOODLEMON_DNA[id].name}</option>`;
+}
+}
+
+async function handleArtGeneration() {
+const apiKey = elements.apiKeyInput.value;
+if (!apiKey) {
+showToast("Please enter your Gemini API key.", "error");
+return;
+}
+localStorage.setItem('geminiApiKey', apiKey);
+
+if (!elements.doodledexSelect.value || !elements.dnaPrompt.value || !elements.scenePrompt.value) {
+showToast("Please select a Doodlemon, ensure DNA is loaded, and write a scene prompt.", "error");
+return;
+}
+
+const finalPrompt = `${elements.stylePrompt.value}, ${elements.dnaPrompt.value}, ${elements.scenePrompt.value}`;
+showToast(`Generating art for ${elements.doodledexSelect.options[elements.doodledexSelect.selectedIndex].text}...`, "info");
+
+elements.generateArtBtn.disabled = true;
+elements.artLoader.classList.remove('hidden');
+elements.artPreviewPlaceholder.classList.add('hidden');
+elements.artPreviewImg.classList.add('hidden');
+elements.downloadOriginalBtn.classList.add('hidden');
+elements.downloadCroppedBtn.classList.add('hidden');
+elements.downloadHelp.classList.add('hidden');
+elements.cropInfo.classList.add('hidden');
+generatedImageUrl = null;
+
+try {
+// CORRECTED PAYLOAD for Imagen Model
+const payload = {
+instances: [{ prompt: finalPrompt }],
+parameters: { "sampleCount": 1 }
+};
+// CORRECTED API ENDPOINT for Imagen Model
+const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+
+const response = await fetch(apiUrl, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify(payload)
+});
+
+if (!response.ok) {
+const errorData = await response.json();
+throw new Error(`API error! Status: ${response.status}. Message: ${errorData.error?.message || 'Unknown error'}`);
+}
+
+const result = await response.json();
+// CORRECTED RESPONSE HANDLING for Imagen Model
+if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
+generatedImageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+elements.artPreviewImg.src = generatedImageUrl;
+elements.artPreviewImg.classList.remove('hidden');
+elements.downloadOriginalBtn.classList.remove('hidden');
+elements.downloadCroppedBtn.classList.remove('hidden');
+elements.downloadHelp.classList.remove('hidden');
+elements.cropInfo.classList.remove('hidden');
+currentImageElement = elements.artPreviewImg;
+showToast("Art generation successful!", "success");
+} else {
+throw new Error("Invalid response structure from API. No image data found.");
+}
+} catch (error) {
+showToast(`Art generation failed: ${error.message}`, "error");
+elements.artPreviewPlaceholder.classList.remove('hidden');
+} finally {
+elements.artLoader.classList.add('hidden');
+elements.generateArtBtn.disabled = false;
+}
+}
+
+function handleDownloadOriginal() {
+if (!generatedImageUrl) {
+showToast("No image to download. Please generate art first.", "error");
+return;
+}
+const selectedDoodlemonId = elements.doodledexSelect.value;
+const selectedDoodlemon = DOODLEMON_DNA[selectedDoodlemonId];
+const filename = getStandardDoodlemonFilename(selectedDoodlemonId, selectedDoodlemon.name);
+downloadImage(generatedImageUrl, filename);
+showToast(`Downloading original ${filename}...`, 'success');
+}
+
+function handleDownloadCropped() {
+if (!generatedImageUrl || !currentImageElement) {
+showToast("No image to crop. Please generate art first.", "error");
+return;
+}
+const selectedDoodlemonId = elements.doodledexSelect.value;
+const selectedDoodlemon = DOODLEMON_DNA[selectedDoodlemonId];
+const layout = elements.cardLayoutSelect.value;
+const layoutObj = CARD_LAYOUTS[layout];
+
+const canvas = document.createElement('canvas');
+const ctx = canvas.getContext('2d');
+canvas.width = layoutObj.width;
+canvas.height = layoutObj.height;
+
+const img = new Image();
+img.onload = function() {
+const previewContainer = document.getElementById('art-preview-container');
+const containerRect = previewContainer.getBoundingClientRect();
+const imgRect = currentImageElement.getBoundingClientRect();
+const scaleX = img.naturalWidth / imgRect.width;
+const scaleY = img.naturalHeight / imgRect.height;
+const cropX = (elements.cropGuide.offsetLeft - (imgRect.left - containerRect.left)) * scaleX;
+const cropY = (elements.cropGuide.offsetTop - (imgRect.top - containerRect.top)) * scaleY;
+const cropWidth = layoutObj.width * scaleX;
+const cropHeight = layoutObj.height * scaleY;
+ctx.drawImage(
+img,
+Math.max(0, cropX), Math.max(0, cropY), cropWidth, cropHeight,
+0, 0, layoutObj.width, layoutObj.height
+);
+canvas.toBlob(function(blob) {
+const filename = getStandardDoodlemonFilename(selectedDoodlemonId, selectedDoodlemon.name, `-${layout.toLowerCase()}`);
+const url = URL.createObjectURL(blob);
+downloadImage(url, filename);
+URL.revokeObjectURL(url);
+showToast(`Downloading cropped ${filename}...`, 'success');
+}, 'image/png');
+};
+img.src = generatedImageUrl;
+}
+
+function downloadImage(url, filename) {
+const link = document.createElement('a');
+link.href = url;
+link.download = filename;
+document.body.appendChild(link);
+link.click();
+document.body.removeChild(link);
+}
+
+function showToast(message, type = 'info') {
+if (!elements.toastContainer) return;
+const toast = document.createElement('div');
+toast.className = `toast ${type}`;
+toast.textContent = message;
+elements.toastContainer.appendChild(toast);
+setTimeout(() => { toast.classList.add('show'); }, 10);
+setTimeout(() => {
+toast.classList.remove('show');
+toast.addEventListener('transitionend', () => {
+if (toast.parentNode) { toast.remove(); }
+});
+}, 4000);
+}
+
+function setupCropGuideInteraction() {
+let isDragging = false;
+let isResizing = false;
+let currentHandle;
+let startX, startY, startLeft, startTop, startWidth, startHeight;
+elements.cropGuide.addEventListener('mousedown', (e) => {
+e.preventDefault();
+startLeft = elements.cropGuide.offsetLeft;
+startTop = elements.cropGuide.offsetTop;
+startWidth = elements.cropGuide.offsetWidth;
+startHeight = elements.cropGuide.offsetHeight;
+startX = e.clientX;
+startY = e.clientY;
+if (e.target.classList.contains('resize-handle')) {
+isResizing = true;
+currentHandle = e.target;
+} else if (e.target === elements.cropGuide) {
+isDragging = true;
+} else {
+return;
+}
+document.addEventListener('mousemove', onMouseMove);
+document.addEventListener('mouseup', onMouseUp);
+});
+function onMouseMove(e) {
+if (isDragging) {
+const dx = e.clientX - startX;
+const dy = e.clientY - startY;
+let newLeft = startLeft + dx;
+let newTop = startTop + dy;
+const parent = elements.cropGuide.parentElement;
+newLeft = Math.max(0, Math.min(newLeft, parent.clientWidth - elements.cropGuide.offsetWidth));
+newTop = Math.max(0, Math.min(newTop, parent.clientHeight - elements.cropGuide.offsetHeight));
+elements.cropGuide.style.left = `${newLeft}px`;
+elements.cropGuide.style.top = `${newTop}px`;
+updateCropInfo();
+} else if (isResizing) {
+const dx = e.clientX - startX;
+const dy = e.clientY - startY;
+const parent = elements.cropGuide.parentElement;
+let newWidth = startWidth;
+let newHeight = startHeight;
+let newLeft = startLeft;
+let newTop = startTop;
+const minSize = 20;
+if (currentHandle.classList.contains('bottom-right')) {
+newWidth = Math.max(minSize, startWidth + dx);
+newHeight = Math.max(minSize, startHeight + dy);
+} else if (currentHandle.classList.contains('bottom-left')) {
+newWidth = Math.max(minSize, startWidth - dx);
+newHeight = Math.max(minSize, startHeight + dy);
+newLeft = startLeft + (startWidth - newWidth);
+} else if (currentHandle.classList.contains('top-right')) {
+newWidth = Math.max(minSize, startWidth + dx);
+newHeight = Math.max(minSize, startHeight - dy);
+newTop = startTop + (startHeight - newHeight);
+} else if (currentHandle.classList.contains('top-left')) {
+newWidth = Math.max(minSize, startWidth - dx);
+newHeight = Math.max(minSize, startHeight - dy);
+newLeft = startLeft + (startWidth - newWidth);
+newTop = startTop + (startHeight - newHeight);
+}
+newWidth = Math.min(newWidth, parent.clientWidth - newLeft);
+newHeight = Math.min(newHeight, parent.clientHeight - newTop);
+newLeft = Math.max(0, Math.min(newLeft, parent.clientWidth - newWidth));
+newTop = Math.max(0, Math.min(newTop, parent.clientHeight - newHeight));
+elements.cropGuide.style.width = `${newWidth}px`;
+elements.cropGuide.style.height = `${newHeight}px`;
+elements.cropGuide.style.left = `${newLeft}px`;
+elements.cropGuide.style.top = `${newTop}px`;
+updateCropInfo();
+}
+}
+function onMouseUp() {
+isDragging = false;
+isResizing = false;
+document.removeEventListener('mousemove', onMouseMove);
+document.removeEventListener('mouseup', onMouseUp);
+}
+}
+
+if (elements.generateArtBtn) elements.generateArtBtn.addEventListener('click', handleArtGeneration);
+if (elements.downloadOriginalBtn) elements.downloadOriginalBtn.addEventListener('click', handleDownloadOriginal);
+if (elements.downloadCroppedBtn) elements.downloadCroppedBtn.addEventListener('click', handleDownloadCropped);
+if (elements.doodledexSelect) elements.doodledexSelect.addEventListener('change', (e) => {
+const dna = DOODLEMON_DNA[e.target.value]?.dna || '';
+elements.dnaPrompt.value = dna;
+});
+if (elements.cardLayoutSelect) elements.cardLayoutSelect.addEventListener('change', (e) => {
+setPreviewLayout(e.target.value);
+});
+
+initialize();
+
+});
+</script>
+</body>
+</html>
+```
