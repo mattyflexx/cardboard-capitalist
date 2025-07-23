@@ -22,6 +22,10 @@ export const LAYOUT_BLUEPRINTS = {
     },
     fullArt: {
         name: { x: 75, y: 880, width: 600, height: 55 }
+    },
+    insertArt: {
+        name: { x: 75, y: 900, width: 600, height: 80 },
+        logo: { x: 600, y: 950, width: 120, height: 80 }
     }
 };
 
@@ -29,7 +33,15 @@ function processSet(cardSet) {
     const debutedDoodlemon = new Set();
     cardSet.cards.forEach(card => {
         const isFullArt = ['Alternate Art', 'Chase'].includes(card.rarity);
-        card.layout = isFullArt ? 'Full-Art' : 'Standard';
+        const isInsertArt = card.rarity === 'Insert Art' || card.isInsertArt;
+        
+        if (isInsertArt) {
+            card.layout = 'Insert-Art';
+        } else if (isFullArt) {
+            card.layout = 'Full-Art';
+        } else {
+            card.layout = 'Standard';
+        }
         
         const isDebutEligible = ['Common', 'Uncommon', 'Holo Rare'].includes(card.rarity);
         if (isDebutEligible && !debutedDoodlemon.has(card.doodledexNum)) {
@@ -100,7 +112,10 @@ const rawGenesisSet = {
         { id: 'GS-CH1', name: 'Shiny Geobble', doodledexNum: 1, rarity: 'Chase', img: `${ASSET_PATH}GS-CH1.png`, lore: 'An incredibly rare golden variant that sparkles with inner light and grants good fortune.' },
         { id: 'GS-CH2', name: 'Van Gogh Lunachu', doodledexNum: 20, rarity: 'Chase', img: `${ASSET_PATH}GS-CH2.png`, lore: 'Painted in swirling cosmic colors, this artistic variant creates beautiful auroras in the night sky.' },
         { id: 'GS-CH3', name: 'Glitchra', doodledexNum: 87, rarity: 'Chase', img: `${ASSET_PATH}GS-CH3.png`, lore: 'A digital anomaly that exists between code and reality, constantly shifting between forms.' },
-        { id: 'GS-CH4', name: 'Kaleidocat', doodledexNum: 86, rarity: 'Chase', img: `${ASSET_PATH}GS-CH4.png`, lore: 'Its fur displays an ever-changing pattern of colors that mesmerizes all who gaze upon it.' }
+        { id: 'GS-CH4', name: 'Kaleidocat', doodledexNum: 86, rarity: 'Chase', img: `${ASSET_PATH}GS-CH4.png`, lore: 'Its fur displays an ever-changing pattern of colors that mesmerizes all who gaze upon it.' },
+        
+        // Insert Art Test Card
+        { id: 'GS-IA1', name: 'Holographic Geobble', doodledexNum: 1, rarity: 'Insert Art', img: `${ASSET_PATH}001-geobble.png`, isInsertArt: true, lore: 'A special holographic variant with rainbow energy flowing through its rocky exterior.' }
     ]
 };
 
