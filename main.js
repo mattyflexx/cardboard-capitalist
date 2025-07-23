@@ -31,9 +31,9 @@ function initializeGame() {
         if (!card.img) {
             const paddedDexNum = String(card.doodledexNum).padStart(3, '0');
             
-            // THE FIX IS HERE: Convert the card name to lowercase to match your filenames.
-            const lowerCaseName = card.name.toLowerCase();
-            card.img = `${ASSET_PATH}${paddedDexNum} ${lowerCaseName}.png`;
+            // Convert the card name to lowercase and replace spaces with hyphens to match the renamed filenames.
+            const lowerCaseName = card.name.toLowerCase().replace(/\s+/g, '-');
+            card.img = `${ASSET_PATH}${paddedDexNum}-${lowerCaseName}.png`;
         }
     });
 
