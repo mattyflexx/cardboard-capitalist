@@ -44,6 +44,7 @@ function initializeGame() {
         addCardToCollection(TCG_SETS.genesis.cards.find(c => c.id === 'GS032'));
         addCardToCollection(TCG_SETS.genesis.cards.find(c => c.id === 'GS-AA1'));
         addCardToCollection(TCG_SETS.genesis.cards.find(c => c.id === 'GS001'));
+        addCardToCollection(TCG_SETS.genesis.cards.find(c => c.id === 'GS-IA1'));
         logMessage("Welcome to Cardboard Capitalist! Your trading card journey begins now.", "system");
     }
 
@@ -143,6 +144,7 @@ function renderCollectionView(container) {
         <option value="Uncommon">Uncommon</option>
         <option value="Holo Rare">Holo Rare</option>
         <option value="Alternate Art">Alternate Art</option>
+        <option value="Insert Art">Insert Art</option>
         <option value="Chase">Chase</option>
       </select>
     </div>
@@ -466,6 +468,56 @@ function buildCardElement(cardInfo, instance) {
     cardElement.dataset.cardId = cardInfo.id;
     if (instance) cardElement.dataset.instanceUid = instance.uid;
 
+    // Handle Insert Art cards with special styling
+    if (cardInfo.layout === 'Insert-Art') {
+        cardElement.classList.add('card-insert-art');
+        
+        const cardInner = document.createElement('div');
+        cardInner.className = 'card-inner';
+        
+        const artImg = document.createElement('img');
+        artImg.src = cardInfo.img || `${ASSET_PATH}fallback.png`;
+        artImg.alt = cardInfo.name;
+        artImg.className = 'card-art';
+        artImg.onerror = function() {
+            this.onerror = null;
+            this.src = `${ASSET_PATH}fallback.png`;
+        };
+        cardInner.appendChild(artImg);
+        
+        const gradientBox = document.createElement('div');
+        gradientBox.className = 'card-gradient-box';
+        
+        const doodlemonName = document.createElement('div');
+        doodlemonName.className = 'card-doodlemon-name';
+        doodlemonName.textContent = 'Doodlemon';
+        gradientBox.appendChild(doodlemonName);
+        
+        const logoImg = document.createElement('img');
+        logoImg.src = `${ASSET_PATH}logo.png`;
+        logoImg.alt = 'Doodlemon logo';
+        logoImg.className = 'card-doodlemon-logo';
+        logoImg.onerror = function() {
+            this.style.display = 'none'; // Hide if logo not found
+        };
+        gradientBox.appendChild(logoImg);
+        
+        cardInner.appendChild(gradientBox);
+        
+        const textureOverlay = document.createElement('div');
+        textureOverlay.className = 'card-texture-overlay';
+        cardInner.appendChild(textureOverlay);
+        
+        cardElement.appendChild(cardInner);
+        
+        const inspectOverlay = document.createElement('div');
+        inspectOverlay.className = 'card-inspect-overlay';
+        cardElement.appendChild(inspectOverlay);
+        
+        return cardElement;
+    }
+
+    // Standard and Full-Art card handling (existing logic)
     const artImg = document.createElement('img');
     artImg.src = cardInfo.img || `${ASSET_PATH}fallback.png`; // Fallback to a local asset
     artImg.alt = cardInfo.name;
