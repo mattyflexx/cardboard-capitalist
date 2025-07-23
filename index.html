@@ -43,10 +43,38 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 class="text-2xl font-bold text-white">Loupe View Inspection</h3>
-                <button id="close-loupe-btn" class="text-3xl font-bold text-gray-400 hover:text-white">×</button>
+                <div class="modal-actions">
+                    <button id="crop-tool-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded mr-2">Crop Image</button>
+                    <button id="close-loupe-btn" class="text-3xl font-bold text-gray-400 hover:text-white">×</button>
+                </div>
             </div>
             <div class="inspection-area">
                 <div id="card-image-container"></div>
+                <div id="crop-controls" class="hidden">
+                    <div class="crop-controls-panel">
+                        <h4 class="text-lg font-bold text-white mb-3">Image Crop Adjustment</h4>
+                        <div class="crop-control-group">
+                            <label class="crop-label">X Position:</label>
+                            <input type="range" id="crop-x" min="-50" max="50" value="0" class="crop-slider">
+                            <span id="crop-x-value" class="crop-value">0%</span>
+                        </div>
+                        <div class="crop-control-group">
+                            <label class="crop-label">Y Position:</label>
+                            <input type="range" id="crop-y" min="-50" max="50" value="0" class="crop-slider">
+                            <span id="crop-y-value" class="crop-value">0%</span>
+                        </div>
+                        <div class="crop-control-group">
+                            <label class="crop-label">Scale:</label>
+                            <input type="range" id="crop-scale" min="50" max="200" value="100" class="crop-slider">
+                            <span id="crop-scale-value" class="crop-value">100%</span>
+                        </div>
+                        <div class="crop-actions">
+                            <button id="apply-crop-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mr-2">Apply</button>
+                            <button id="reset-crop-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded mr-2">Reset</button>
+                            <button id="cancel-crop-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Cancel</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

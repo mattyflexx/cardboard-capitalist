@@ -16,10 +16,23 @@ const DOM = {
     blueprintModeBtn: document.getElementById('blueprint-mode-btn'),
     navContainer: document.getElementById('main-nav'),
     nextDayBtn: document.getElementById('next-day-btn'),
+    cropToolBtn: document.getElementById('crop-tool-btn'),
+    cropControls: document.getElementById('crop-controls'),
+    cropX: document.getElementById('crop-x'),
+    cropY: document.getElementById('crop-y'),
+    cropScale: document.getElementById('crop-scale'),
+    cropXValue: document.getElementById('crop-x-value'),
+    cropYValue: document.getElementById('crop-y-value'),
+    cropScaleValue: document.getElementById('crop-scale-value'),
+    applyCropBtn: document.getElementById('apply-crop-btn'),
+    resetCropBtn: document.getElementById('reset-crop-btn'),
+    cancelCropBtn: document.getElementById('cancel-crop-btn'),
 };
 
 let tutorialActive = false;
 let currentTutorialStep = 0;
+let currentCropCardId = null;
+let cropSettings = JSON.parse(localStorage.getItem('cardCropSettings') || '{}');
 
 const ASSET_PATH = 'assets/';
 
@@ -485,6 +498,9 @@ function buildCardElement(cardInfo, instance) {
         };
         cardInner.appendChild(artImg);
         
+        // Apply saved crop settings for insert art cards
+        applySavedCropSettings(cardInfo.id, artImg);
+        
         const gradientBox = document.createElement('div');
         gradientBox.className = 'card-gradient-box';
         
@@ -527,6 +543,9 @@ function buildCardElement(cardInfo, instance) {
         this.src = `${ASSET_PATH}fallback.png`; // A generic fallback image
     };
     cardElement.appendChild(artImg);
+
+    // Apply saved crop settings for standard/full-art cards
+    applySavedCropSettings(cardInfo.id, artImg);
 
     const frameImg = document.createElement('img');
     const frameType = cardInfo.layout === 'Full-Art' ? 'fullArt' : 'standard';
@@ -600,6 +619,115 @@ function openLoupeView(cardId, instanceUid) {
 
 function closeLoupeView() {
     DOM.loupeModal.classList.add('hidden');
+    closeCropTool();
+}
+
+// Crop Tool Functions
+function openCropTool() {
+    const cardElement = DOM.loupeCardContainer.querySelector('.card-container');
+    if (!cardElement) return;
+    
+    currentCropCardId = cardElement.dataset.cardId;
+    const currentSettings = cropSettings[currentCropCardId] || { x: 0, y: 0, scale: 100 };
+    
+    // Load current settings into controls
+    DOM.cropX.value = currentSettings.x;
+    DOM.cropY.value = currentSettings.y;
+    DOM.cropScale.value = currentSettings.scale;
+    
+    updateCropValueDisplays();
+    DOM.cropControls.classList.remove('hidden');
+    DOM.cropToolBtn.style.display = 'none';
+    
+    // Apply current settings to preview
+    applyCropTransform(cardElement, currentSettings.x, currentSettings.y, currentSettings.scale);
+}
+
+function closeCropTool() {
+    DOM.cropControls.classList.add('hidden');
+    DOM.cropToolBtn.style.display = 'inline-block';
+    currentCropCardId = null;
+    
+    // Remove preview transform
+    const cardElement = DOM.loupeCardContainer.querySelector('.card-container');
+    if (cardElement) {
+        const artImg = cardElement.querySelector('.card-art');
+        if (artImg) {
+            artImg.style.transform = '';
+        }
+    }
+}
+
+function updateCropPreview() {
+    if (!currentCropCardId) return;
+    
+    const x = parseInt(DOM.cropX.value);
+    const y = parseInt(DOM.cropY.value);
+    const scale = parseInt(DOM.cropScale.value);
+    
+    updateCropValueDisplays();
+    
+    const cardElement = DOM.loupeCardContainer.querySelector('.card-container');
+    if (cardElement) {
+        applyCropTransform(cardElement, x, y, scale);
+    }
+}
+
+function updateCropValueDisplays() {
+    DOM.cropXValue.textContent = DOM.cropX.value + '%';
+    DOM.cropYValue.textContent = DOM.cropY.value + '%';
+    DOM.cropScaleValue.textContent = DOM.cropScale.value + '%';
+}
+
+function applyCropTransform(cardElement, x, y, scale) {
+    const artImg = cardElement.querySelector('.card-art');
+    if (artImg) {
+        const transform = `translate(${x}%, ${y}%) scale(${scale / 100})`;
+        artImg.style.transform = transform;
+        artImg.style.transformOrigin = 'center center';
+    }
+}
+
+function applyCropSettings() {
+    if (!currentCropCardId) return;
+    
+    const x = parseInt(DOM.cropX.value);
+    const y = parseInt(DOM.cropY.value);
+    const scale = parseInt(DOM.cropScale.value);
+    
+    // Save settings
+    cropSettings[currentCropCardId] = { x, y, scale };
+    localStorage.setItem('cardCropSettings', JSON.stringify(cropSettings));
+    
+    logMessage(`Crop settings applied to ${currentCropCardId}`, "success");
+    closeCropTool();
+}
+
+function resetCropSettings() {
+    if (!currentCropCardId) return;
+    
+    // Reset to default values
+    DOM.cropX.value = 0;
+    DOM.cropY.value = 0;
+    DOM.cropScale.value = 100;
+    
+    updateCropValueDisplays();
+    updateCropPreview();
+    
+    // Remove from saved settings
+    delete cropSettings[currentCropCardId];
+    localStorage.setItem('cardCropSettings', JSON.stringify(cropSettings));
+    
+    logMessage(`Crop settings reset for ${currentCropCardId}`, "info");
+}
+
+function applySavedCropSettings(cardId, artImg) {
+    const settings = cropSettings[cardId];
+    if (settings && (settings.scale !== 100 || settings.x !== 0 || settings.y !== 0)) {
+        const transform = `translate(${settings.x}%, ${settings.y}%) scale(${settings.scale / 100})`;
+        artImg.style.transform = transform;
+        artImg.style.transformOrigin = 'center center';
+    }
 }
 
 function buyPack(setName) {
@@ -931,6 +1059,16 @@ function setupEventListeners() {
     
     DOM.closeLoupeBtn.addEventListener('click', closeLoupeView);
     DOM.loupeModal.addEventListener('click', e => { if (e.target === DOM.loupeModal || e.target.classList.contains('modal-backdrop')) closeLoupeView(); });
+    
+    // Crop tool event listeners
+    DOM.cropToolBtn.addEventListener('click', openCropTool);
+    DOM.applyCropBtn.addEventListener('click', applyCropSettings);
+    DOM.resetCropBtn.addEventListener('click', resetCropSettings);
+    DOM.cancelCropBtn.addEventListener('click', closeCropTool);
+    
+    DOM.cropX.addEventListener('input', updateCropPreview);
+    DOM.cropY.addEventListener('input', updateCropPreview);
+    DOM.cropScale.addEventListener('input', updateCropPreview);
     
     DOM.blueprintModeBtn.addEventListener('click', () => renderMainView('blueprint'));
     DOM.nextDayBtn.addEventListener('click', nextDay);
