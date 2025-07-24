@@ -334,14 +334,14 @@ Generate art to see preview
 <div class="download-section">
 <div class="download-buttons">
 <button id="download-original-btn" class="download-btn download-original hidden">
-📥 Download Original
+📥 Download Full Image
 </button>
 <button id="save-to-assets-btn" class="download-btn download-cropped hidden">
-💾 Save to Assets
+💾 Download Cropped Image
 </button>
 </div>
 <div id="download-help" class="download-help hidden">
-<strong>💡 Tip:</strong> Use the blue crop guide to position the card area, then save to assets to add it to your collection with the proper naming and aspect ratio.
+<strong>💡 Tip:</strong> Use the blue crop guide to position the card area, then download the cropped image to add it to your collection with the proper naming and aspect ratio.
 </div>
 </div>
 </div>
@@ -725,10 +725,10 @@ const selectedDoodlemonId = elements.doodledexSelect.value;
 const selectedDoodlemon = DOODLEMON_DNA[selectedDoodlemonId];
 const filename = getStandardDoodlemonFilename(selectedDoodlemonId, selectedDoodlemon.name);
 downloadImage(generatedImageUrl, filename);
-showToast(`Downloading original ${filename}...`, 'success');
+showToast(`Downloading full image ${filename}...`, 'success');
 }
 
-function handleSaveToAssets() {
+function handleDownloadCroppedImage() {
 if (!generatedImageUrl || !currentImageElement) {
 showToast("No image to save. Please generate art first.", "error");
 return;
@@ -781,7 +781,7 @@ const filename = getStandardDoodlemonFilename(selectedDoodlemonId, selectedDoodl
 const url = URL.createObjectURL(blob);
 downloadImage(url, filename);
 URL.revokeObjectURL(url);
-showToast(`Downloaded ${filename}. Please place it in the assets folder to add to your collection.`, 'success');
+showToast(`Downloaded cropped image ${filename}. Please place it in the assets folder to add to your collection.`, 'success');
 
 // TODO: In a real implementation, this would update the config.js file
 // For now, we'll show instructions
@@ -1028,7 +1028,7 @@ document.removeEventListener('mouseup', onMouseUp);
 
 if (elements.generateArtBtn) elements.generateArtBtn.addEventListener('click', handleArtGeneration);
 if (elements.downloadOriginalBtn) elements.downloadOriginalBtn.addEventListener('click', handleDownloadOriginal);
-if (elements.saveToAssetsBtn) elements.saveToAssetsBtn.addEventListener('click', handleSaveToAssets);
+if (elements.saveToAssetsBtn) elements.saveToAssetsBtn.addEventListener('click', handleDownloadCroppedImage);
 if (elements.doodledexSelect) elements.doodledexSelect.addEventListener('change', (e) => {
 const selectedValue = e.target.value;
 
