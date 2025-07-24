@@ -3,25 +3,26 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Doodlemon Art Generator</title>
+<title>Art Director - Cardboard Capitalist</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+background: #1f2937;
+color: #e5e7eb;
 min-height: 100vh;
 padding: 20px;
 }
 .container {
-max-width: 1200px;
+max-width: 1400px;
 margin: 0 auto;
-background: white;
+background: #374151;
 border-radius: 15px;
-box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+box-shadow: 0 20px 40px rgba(0,0,0,0.3);
 overflow: hidden;
 }
 .header {
-background: linear-gradient(135deg, #ff6b6b, #feca57);
+background: linear-gradient(135deg, #3b82f6, #1d4ed8);
 color: white;
 padding: 30px;
 text-align: center;
@@ -30,7 +31,7 @@ text-align: center;
 .header p { font-size: 1.1rem; opacity: 0.9; }
 .main-content {
 display: grid;
-grid-template-columns: 1fr 1fr;
+grid-template-columns: 1fr 1fr 300px;
 gap: 30px;
 padding: 30px;
 }
@@ -38,28 +39,30 @@ padding: 30px;
 .form-group { display: flex; flex-direction: column; gap: 8px; }
 .form-group label {
 font-weight: 600;
-color: #333;
+color: #f3f4f6;
 font-size: 0.95rem;
 }
 .form-group select,
 .form-group input,
 .form-group textarea {
 padding: 12px;
-border: 2px solid #e1e5e9;
+border: 2px solid #4b5563;
 border-radius: 8px;
 font-size: 1rem;
 transition: border-color 0.3s ease;
+background: #1f2937;
+color: #e5e7eb;
 }
 .form-group select:focus,
 .form-group input:focus,
 .form-group textarea:focus {
 outline: none;
-border-color: #667eea;
-box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+border-color: #3b82f6;
+box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 .form-group textarea { resize: vertical; min-height: 80px; }
 .generate-btn {
-background: linear-gradient(135deg, #667eea, #764ba2);
+background: linear-gradient(135deg, #3b82f6, #1d4ed8);
 color: white;
 border: none;
 padding: 15px 30px;
@@ -71,7 +74,7 @@ transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .generate-btn:hover:not(:disabled) {
 transform: translateY(-2px);
-box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
 }
 .generate-btn:disabled {
 opacity: 0.6;
@@ -83,26 +86,26 @@ display: flex;
 flex-direction: column;
 gap: 10px;
 padding: 15px;
-background: #f8f9fa;
+background: #4b5563;
 border-radius: 8px;
 }
-.dimension-info { font-size: 0.9rem; color: #666; }
+.dimension-info { font-size: 0.9rem; color: #d1d5db; }
 #art-preview-container {
 position: relative;
 width: 400px;
 height: 400px;
-border: 2px dashed #ddd;
+border: 2px dashed #6b7280;
 border-radius: 8px;
 overflow: hidden;
 margin: 0 auto;
-background: #f8f9fa;
+background: #374151;
 }
 #art-preview-placeholder {
 display: flex;
 align-items: center;
 justify-content: center;
 height: 100%;
-color: #999;
+color: #9ca3af;
 font-size: 1.1rem;
 }
 #art-preview-img {
@@ -121,8 +124,8 @@ gap: 15px;
 .spinner {
 width: 40px;
 height: 40px;
-border: 4px solid #f3f3f3;
-border-top: 4px solid #667eea;
+border: 4px solid #4b5563;
+border-top: 4px solid #3b82f6;
 border-radius: 50%;
 animation: spin 1s linear infinite;
 }
@@ -211,6 +214,13 @@ max-width: 300px;
 .toast.success { background: #28a745; }
 .toast.error { background: #dc3545; }
 .toast.info { background: #17a2b8; }
+@media (max-width: 1200px) {
+.main-content {
+grid-template-columns: 1fr 1fr;
+gap: 20px;
+padding: 20px;
+}
+}
 @media (max-width: 768px) {
 .main-content {
 grid-template-columns: 1fr;
@@ -227,8 +237,28 @@ padding: 20px;
 <div id="toast-container" class="toast-container"></div>
 <div class="container">
 <div class="header">
-<h1>🎨 Doodlemon Art Generator</h1>
-<p>Create professional TCG artwork for your Doodlemon cards</p>
+<div style="display: flex; align-items: center; justify-content: space-between;">
+<a href="index.html" style="color: white; text-decoration: none; font-size: 1rem; opacity: 0.9;">← Back to Game</a>
+<div style="text-align: center; flex: 1;">
+<h1>🎨 Art Director</h1>
+<p>Crop images and generate art for your Doodlemon cards</p>
+</div>
+<div style="width: 120px;"></div>
+<div class="card-preview-section">
+<h3 style="color: #f3f4f6; margin-bottom: 15px; font-size: 1.2rem;">Card Preview</h3>
+<div id="card-preview-container" style="position: relative; width: 250px; height: 350px; margin: 0 auto; background: #1f2937; border-radius: 12px; overflow: hidden; border: 2px solid #4b5563;">
+<div id="card-preview-placeholder" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #9ca3af; font-size: 0.9rem; text-align: center; padding: 20px;">
+Generate and crop art to see card preview
+</div>
+<canvas id="card-preview-canvas" style="width: 100%; height: 100%; object-fit: contain; display: none;"></canvas>
+</div>
+<div style="margin-top: 15px; padding: 10px; background: #4b5563; border-radius: 6px;">
+<div style="font-size: 0.85rem; color: #d1d5db;">
+<div><strong>Preview Info:</strong></div>
+<div id="card-preview-info">Select a Doodlemon and layout to see details</div>
+</div>
+</div>
+</div>
 </div>
 <div class="main-content">
 <div class="controls-section">
@@ -261,9 +291,8 @@ padding: 20px;
 <div class="form-group">
 <label for="card-layout-select">Card Layout:</label>
 <select id="card-layout-select">
-<option value="PORTRAIT">Full Art (Portrait) - 288x400px</option>
-<option value="LANDSCAPE">2nd Edition (Landscape) - 400x300px</option>
-<option value="SQUARE">1st Edition (Square) - 400x400px</option>
+<option value="BASE">Base Card Art (5:7 ratio) - 300x420px</option>
+<option value="INSERT">Insert Card (Full) - 300x420px</option>
 </select>
 </div>
 <div id="dimension-info" class="dimension-info"></div>
@@ -295,12 +324,12 @@ Generate art to see preview
 <button id="download-original-btn" class="download-btn download-original hidden">
 📥 Download Original
 </button>
-<button id="download-cropped-btn" class="download-btn download-cropped hidden">
-✂️ Download Cropped
+<button id="save-to-assets-btn" class="download-btn download-cropped hidden">
+💾 Save to Assets
 </button>
 </div>
 <div id="download-help" class="download-help hidden">
-<strong>💡 Tip:</strong> Use the blue crop guide to position the card area, then download the cropped version for perfect card dimensions.
+<strong>💡 Tip:</strong> Use the blue crop guide to position the card area, then save to assets to add it to your collection with the proper naming and aspect ratio.
 </div>
 </div>
 </div>
@@ -369,7 +398,7 @@ const DOODLEMON_DNA = {
 49: { name: "Krystuk", dna: "The evolved form of Glimmer. A large, beautiful golem made of perfectly clear, interlocking crystals. Despite its sharp, geometric appearance, it is surprisingly gentle and kind, often seen protecting smaller creatures." },
 50: { name: "Carapace", dna: "A small, six-legged insectoid creature that wears the hollowed-out, slightly-too-large exoskeleton of its previous self as armor. It peeks out from the head-hole of its old shell with large, timid eyes." },
 51: { name: "Tangler", dna: "A chaotic, walking mess of sentient, sparking electrical wires and data cables of various colors (red, blue, yellow, black). Two frayed wires act as 'eyes,' sparking with electricity when it gets agitated." },
-52: { name: "Kangasmind", dna: "228Z" },
+52: { name: "Kangasmind", dna: "A mysterious psychic creature that exists between dimensions. Its form shifts constantly between solid and ethereal states." },
 53: { name: "Ponysea", dna: "A creature that looks like a tiny, stout land pony with a coat the color of wet sand. It sweats pure, clean spring water, and its mane and tail appear to be made of flowing water. It can find underground water sources by stomping its hoof." },
 54: { name: "Geyserdra", dna: "The evolved form of Ponysea. It now gallops across plains, its mane and tail having become a magnificent plume of steam and mist. It can shoot powerful, heated geysers from its snout with great force." },
 55: { name: "Jeweling", dna: "The evolved form of Ponysea. Its body is made of living, polished gold, and its horn has grown into a massive, perfectly cut, sparkling ruby. It is incredibly rare and sought after by treasure hunters." },
@@ -377,11 +406,11 @@ const DOODLEMON_DNA = {
 57: { name: "Kettlehound", dna: "The evolved form of Teapup. It has outgrown its pot and now stands as a proud, hound-like creature made of gleaming, polished ceramic. It can whistle like a boiling kettle and shoot jets of scalding steam from its mouth." },
 58: { name: "Flickerite", dna: "A creature whose body is an old-fashioned, hand-cranked film projector. It walks on a small tripod and its lens-eye projects silent, black-and-white images onto any surface to communicate." },
 59: { name: "Prunther", dna: "A gentle and elegant creature resembling a praying mantis. Its body is a leafy green color, and its limbs are long and stick-like. Instead of claws, its two primary forelimbs are a pair of incredibly sharp, metallic, silver-colored pruning shears, which it uses to expertly trim plants into beautiful topiaries." },
-60: { name: "Lorelei", dna: "391Z" },
+60: { name: "Lorelei", dna: "A beautiful aquatic creature with flowing fins that shimmer like flowing water. Its song can calm the most turbulent seas." },
 61: { name: "Siphohm", dna: "It doesn't produce electricity; it consumes it. This creature looks like a large, spiky, blue and yellow rodent with a long, copper-tipped tail that it inserts into electrical sockets. Its fur is rubbery and insulated, and it often has a dazed, overcharged look in its eyes." },
 62: { name: "Cryomar", dna: "A creature that lives in frozen volcanoes. Its body is formed from jagged, black volcanic rock covered in a thick layer of sharp, blue-white ice. It breathes out a freezing mist, and its eyes glow from deep within its rocky head." },
 63: { name: "Polarsir", dna: "The evolved form of Cryomar. Its horn has become a giant, powerful U-shaped electromagnet. It can use magnetic fields to attract or violently repel metallic objects, and its body is constantly surrounded by a faint magnetic shimmer." },
-64: { name: "Plauros", dna: "064X" },
+64: { name: "Plauros", dna: "An ancient and powerful creature with scales that gleam like polished obsidian. Its presence commands respect from all who witness its terrible majesty." },
 65: { name: "Grubble", dna: "Considered incredibly weak, it's a small, stone-like grub that does little more than inch along the ground, nibbling on minerals. Its body is grey and lumpy, resembling a simple pebble with two beady eyes." },
 66: { name: "Saigados", dna: "Instead of a raging sea serpent, Grubble evolves into a small, wise, and incredibly powerful sage-like dragon. It floats peacefully, its body long and serpentine but made of smooth, white stone. Its eyes glow with ancient wisdom, and it speaks telepathically." },
 67: { name: "Duneas", dna: "A gentle giant that resembles a tortoise with a massive, sandy shell that looks like a miniature desert dune. It ferries travelers across vast deserts, storing immense amounts of water within its shell, which it can share with those in need." },
@@ -407,11 +436,10 @@ const DOODLEMON_DNA = {
 87: { name: "Glitchra", dna: "A legendary creature believed to be a digital being that escaped into the physical world. Its form is unstable, constantly glitching and distorting between a vaguely draconic shape and a chaotic mess of pixels, static, and corrupted data. It speaks in a garbled mix of dial-up modem sounds and distorted audio clips." }
 };
 
-// --- Card Layouts ---
+// --- Card Layouts with proper TCG aspect ratios ---
 const CARD_LAYOUTS = {
-SQUARE: { width: 400, height: 400, name: "1st Edition (Square)" },
-LANDSCAPE: { width: 400, height: 300, name: "2nd Edition (Landscape)" },
-PORTRAIT: { width: 288, height: 400, name: "Full Art (Portrait)" }
+BASE: { width: 300, height: 420, name: "Base Card Art (5:7)", aspectRatio: 5/7, locked: true },
+INSERT: { width: 300, height: 420, name: "Insert Card (Full)", aspectRatio: 5/7, locked: false }
 };
 
 let generatedImageUrl = null;
@@ -428,7 +456,7 @@ artLoader: document.getElementById('art-loader'),
 artPreviewPlaceholder: document.getElementById('art-preview-placeholder'),
 artPreviewImg: document.getElementById('art-preview-img'),
 downloadOriginalBtn: document.getElementById('download-original-btn'),
-downloadCroppedBtn: document.getElementById('download-cropped-btn'),
+saveToAssetsBtn: document.getElementById('save-to-assets-btn'),
 downloadHelp: document.getElementById('download-help'),
 cardLayoutSelect: document.getElementById('card-layout-select'),
 cropGuide: document.getElementById('crop-guide'),
@@ -438,7 +466,10 @@ cropPosition: document.getElementById('crop-position'),
 dimensionInfo: document.getElementById('dimension-info'),
 exactDimensions: document.getElementById('exact-dimensions'),
 apiKeyInput: document.getElementById('api-key-input'),
-toastContainer: document.getElementById('toast-container')
+toastContainer: document.getElementById('toast-container'),
+cardPreviewCanvas: document.getElementById('card-preview-canvas'),
+cardPreviewPlaceholder: document.getElementById('card-preview-placeholder'),
+cardPreviewInfo: document.getElementById('card-preview-info')
 };
 
 function initialize() {
@@ -446,13 +477,14 @@ populateSelectors();
 elements.stylePrompt.value = DEFAULT_STYLE_PROMPT;
 setPreviewLayout(elements.cardLayoutSelect.value);
 setupCropGuideInteraction();
+updateCardPreview();
 const savedApiKey = localStorage.getItem('geminiApiKey');
 if (savedApiKey) elements.apiKeyInput.value = savedApiKey;
 }
 function setPreviewLayout(layout) {
 const layoutConfig = CARD_LAYOUTS[layout];
 elements.dimensionInfo.innerHTML = `<div><strong>${layoutConfig.name} (${layoutConfig.width}x${layoutConfig.height}px):</strong> ${getLayoutDescription(layout)}</div>
-<div class="mt-1 text-xs text-gray-400">Aspect ratio: ${(layoutConfig.width/layoutConfig.height).toFixed(2)}:1</div>`;
+<div class="mt-1 text-xs text-gray-400">Aspect ratio: ${layoutConfig.aspectRatio.toFixed(2)}:1 ${layoutConfig.locked ? '(locked)' : ''}</div>`;
 elements.exactDimensions.textContent = `${layoutConfig.width}x${layoutConfig.height}px`;
 _setCropGuideDimensions(layoutConfig.width, layoutConfig.height, 0, 0);
 elements.cropGuide.style.display = 'block';
@@ -460,9 +492,8 @@ updateCropInfo();
 }
 function getLayoutDescription(layout) {
 switch(layout) {
-case 'SQUARE': return 'Classic square card format';
-case 'LANDSCAPE': return 'Wide landscape card format';
-case 'PORTRAIT': return 'Standard TCG card image area';
+case 'BASE': return 'Standard TCG card art area with 5:7 aspect ratio';
+case 'INSERT': return 'Full insert card area (can be any ratio)';
 default: return 'Card format';
 }
 }
@@ -476,6 +507,10 @@ function updateCropInfo() {
 const layout = CARD_LAYOUTS[elements.cardLayoutSelect.value];
 elements.cropDimensions.textContent = `${layout.width}x${layout.height}px`;
 elements.cropPosition.textContent = `${elements.cropGuide.offsetLeft}, ${elements.cropGuide.offsetTop}`;
+// Update card preview when crop area changes
+if (generatedImageUrl && currentImageElement) {
+generateCardPreview();
+}
 }
 function populateSelectors() {
 elements.doodledexSelect.innerHTML = '<option value="">-- Choose a creature --</option>';
@@ -505,7 +540,7 @@ elements.artLoader.classList.remove('hidden');
 elements.artPreviewPlaceholder.classList.add('hidden');
 elements.artPreviewImg.classList.add('hidden');
 elements.downloadOriginalBtn.classList.add('hidden');
-elements.downloadCroppedBtn.classList.add('hidden');
+elements.saveToAssetsBtn.classList.add('hidden');
 elements.downloadHelp.classList.add('hidden');
 elements.cropInfo.classList.add('hidden');
 generatedImageUrl = null;
@@ -537,10 +572,11 @@ generatedImageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64En
 elements.artPreviewImg.src = generatedImageUrl;
 elements.artPreviewImg.classList.remove('hidden');
 elements.downloadOriginalBtn.classList.remove('hidden');
-elements.downloadCroppedBtn.classList.remove('hidden');
+elements.saveToAssetsBtn.classList.remove('hidden');
 elements.downloadHelp.classList.remove('hidden');
 elements.cropInfo.classList.remove('hidden');
 currentImageElement = elements.artPreviewImg;
+updateCardPreview();
 showToast("Art generation successful!", "success");
 } else {
 throw new Error("Invalid response structure from API. No image data found.");
@@ -566,9 +602,9 @@ downloadImage(generatedImageUrl, filename);
 showToast(`Downloading original ${filename}...`, 'success');
 }
 
-function handleDownloadCropped() {
+function handleSaveToAssets() {
 if (!generatedImageUrl || !currentImageElement) {
-showToast("No image to crop. Please generate art first.", "error");
+showToast("No image to save. Please generate art first.", "error");
 return;
 }
 const selectedDoodlemonId = elements.doodledexSelect.value;
@@ -578,8 +614,17 @@ const layoutObj = CARD_LAYOUTS[layout];
 
 const canvas = document.createElement('canvas');
 const ctx = canvas.getContext('2d');
+
+// Set canvas to proper card art dimensions
+if (layout === 'BASE') {
+// Base cards use 5:7 aspect ratio
+canvas.width = 300; // 5 * 60
+canvas.height = 420; // 7 * 60
+} else {
+// Insert cards can use any ratio
 canvas.width = layoutObj.width;
 canvas.height = layoutObj.height;
+}
 
 const img = new Image();
 img.onload = function() {
@@ -590,25 +635,34 @@ const scaleX = img.naturalWidth / imgRect.width;
 const scaleY = img.naturalHeight / imgRect.height;
 const cropX = (elements.cropGuide.offsetLeft - (imgRect.left - containerRect.left)) * scaleX;
 const cropY = (elements.cropGuide.offsetTop - (imgRect.top - containerRect.top)) * scaleY;
-const cropWidth = layoutObj.width * scaleX;
-const cropHeight = layoutObj.height * scaleY;
+const cropWidth = canvas.width * scaleX;
+const cropHeight = canvas.height * scaleY;
+
 ctx.drawImage(
 img,
 Math.max(0, cropX), Math.max(0, cropY), cropWidth, cropHeight,
-0, 0, layoutObj.width, layoutObj.height
+0, 0, canvas.width, canvas.height
 );
+
 canvas.toBlob(function(blob) {
-const filename = getStandardDoodlemonFilename(selectedDoodlemonId, selectedDoodlemon.name, `-${layout.toLowerCase()}`);
+const filename = getStandardDoodlemonFilename(selectedDoodlemonId, selectedDoodlemon.name);
+
+// Since we can't directly save to the assets folder in a browser environment,
+// we'll download the file with instructions to manually place it
 const url = URL.createObjectURL(blob);
 downloadImage(url, filename);
 URL.revokeObjectURL(url);
-showToast(`Downloading cropped ${filename}...`, 'success');
+showToast(`Downloaded ${filename}. Please place it in the assets folder to add to your collection.`, 'success');
+
+// TODO: In a real implementation, this would update the config.js file
+// For now, we'll show instructions
+showToast(`To complete: 1) Move ${filename} to assets folder, 2) Update config.js if needed`, 'info');
 }, 'image/png');
 };
 img.src = generatedImageUrl;
 }
 
-function downloadImage(url, filename) {
+function showToast(message, type = 'info') {
 const link = document.createElement('a');
 link.href = url;
 link.download = filename;
@@ -617,7 +671,92 @@ link.click();
 document.body.removeChild(link);
 }
 
-function showToast(message, type = 'info') {
+function updateCardPreview() {
+const selectedDoodlemonId = elements.doodledexSelect.value;
+const layout = elements.cardLayoutSelect.value;
+
+if (!selectedDoodlemonId) {
+elements.cardPreviewInfo.textContent = 'Select a Doodlemon to see preview';
+return;
+}
+
+const selectedDoodlemon = DOODLEMON_DNA[selectedDoodlemonId];
+const layoutConfig = CARD_LAYOUTS[layout];
+
+elements.cardPreviewInfo.innerHTML = `
+<div><strong>Card:</strong> ${selectedDoodlemon.name}</div>
+<div><strong>Layout:</strong> ${layoutConfig.name}</div>
+<div><strong>Art Size:</strong> ${layoutConfig.width}x${layoutConfig.height}px</div>
+`;
+
+if (generatedImageUrl && currentImageElement) {
+generateCardPreview();
+}
+}
+
+function generateCardPreview() {
+if (!generatedImageUrl || !elements.doodledexSelect.value) return;
+
+const canvas = elements.cardPreviewCanvas;
+const ctx = canvas.getContext('2d');
+const selectedDoodlemon = DOODLEMON_DNA[elements.doodledexSelect.value];
+const layout = elements.cardLayoutSelect.value;
+
+// Set up canvas dimensions (card is 5:7 ratio)
+canvas.width = 250;
+canvas.height = 350;
+
+// Clear canvas
+ctx.fillStyle = '#1f2937';
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+const img = new Image();
+img.onload = function() {
+// Draw cropped art
+const artWidth = canvas.width * 0.9;
+const artHeight = artWidth * (7/5); // 5:7 aspect ratio
+const artX = (canvas.width - artWidth) / 2;
+const artY = 20;
+
+// Get crop area from the crop guide
+const previewContainer = document.getElementById('art-preview-container');
+const containerRect = previewContainer.getBoundingClientRect();
+const imgRect = currentImageElement.getBoundingClientRect();
+const scaleX = img.naturalWidth / imgRect.width;
+const scaleY = img.naturalHeight / imgRect.height;
+const cropX = (elements.cropGuide.offsetLeft - (imgRect.left - containerRect.left)) * scaleX;
+const cropY = (elements.cropGuide.offsetTop - (imgRect.top - containerRect.top)) * scaleY;
+const cropWidth = CARD_LAYOUTS[layout].width * scaleX;
+const cropHeight = CARD_LAYOUTS[layout].height * scaleY;
+
+ctx.drawImage(
+img,
+Math.max(0, cropX), Math.max(0, cropY), cropWidth, cropHeight,
+artX, artY, artWidth, artHeight
+);
+
+// Draw frame (simple border for now)
+ctx.strokeStyle = '#3b82f6';
+ctx.lineWidth = 3;
+ctx.strokeRect(artX, artY, artWidth, artHeight);
+
+// Draw card name
+ctx.fillStyle = '#f3f4f6';
+ctx.font = 'bold 14px Inter, sans-serif';
+ctx.textAlign = 'center';
+const nameY = artY + artHeight + 30;
+ctx.fillText(selectedDoodlemon.name, canvas.width / 2, nameY);
+
+// Draw layout type
+ctx.font = '10px Inter, sans-serif';
+ctx.fillStyle = '#9ca3af';
+ctx.fillText(layout === 'BASE' ? 'Base Card' : 'Insert Card', canvas.width / 2, nameY + 20);
+
+elements.cardPreviewCanvas.style.display = 'block';
+elements.cardPreviewPlaceholder.style.display = 'none';
+};
+img.src = generatedImageUrl;
+}
 if (!elements.toastContainer) return;
 const toast = document.createElement('div');
 toast.className = `toast ${type}`;
@@ -632,11 +771,21 @@ if (toast.parentNode) { toast.remove(); }
 }, 4000);
 }
 
+function downloadImage(url, filename) {
+const link = document.createElement('a');
+link.href = url;
+link.download = filename;
+document.body.appendChild(link);
+link.click();
+document.body.removeChild(link);
+}
+
 function setupCropGuideInteraction() {
 let isDragging = false;
 let isResizing = false;
 let currentHandle;
 let startX, startY, startLeft, startTop, startWidth, startHeight;
+
 elements.cropGuide.addEventListener('mousedown', (e) => {
 e.preventDefault();
 startLeft = elements.cropGuide.offsetLeft;
@@ -656,6 +805,7 @@ return;
 document.addEventListener('mousemove', onMouseMove);
 document.addEventListener('mouseup', onMouseUp);
 });
+
 function onMouseMove(e) {
 if (isDragging) {
 const dx = e.clientX - startX;
@@ -669,6 +819,8 @@ elements.cropGuide.style.left = `${newLeft}px`;
 elements.cropGuide.style.top = `${newTop}px`;
 updateCropInfo();
 } else if (isResizing) {
+const layout = elements.cardLayoutSelect.value;
+const layoutConfig = CARD_LAYOUTS[layout];
 const dx = e.clientX - startX;
 const dy = e.clientY - startY;
 const parent = elements.cropGuide.parentElement;
@@ -677,27 +829,48 @@ let newHeight = startHeight;
 let newLeft = startLeft;
 let newTop = startTop;
 const minSize = 20;
+
 if (currentHandle.classList.contains('bottom-right')) {
 newWidth = Math.max(minSize, startWidth + dx);
+if (layoutConfig.locked) {
+newHeight = newWidth / layoutConfig.aspectRatio;
+} else {
 newHeight = Math.max(minSize, startHeight + dy);
+}
 } else if (currentHandle.classList.contains('bottom-left')) {
 newWidth = Math.max(minSize, startWidth - dx);
+if (layoutConfig.locked) {
+newHeight = newWidth / layoutConfig.aspectRatio;
+} else {
 newHeight = Math.max(minSize, startHeight + dy);
+}
 newLeft = startLeft + (startWidth - newWidth);
 } else if (currentHandle.classList.contains('top-right')) {
 newWidth = Math.max(minSize, startWidth + dx);
-newHeight = Math.max(minSize, startHeight - dy);
+if (layoutConfig.locked) {
+newHeight = newWidth / layoutConfig.aspectRatio;
 newTop = startTop + (startHeight - newHeight);
-} else if (currentHandle.classList.contains('top-left')) {
-newWidth = Math.max(minSize, startWidth - dx);
+} else {
 newHeight = Math.max(minSize, startHeight - dy);
-newLeft = startLeft + (startWidth - newWidth);
 newTop = startTop + (startHeight - newHeight);
 }
+} else if (currentHandle.classList.contains('top-left')) {
+newWidth = Math.max(minSize, startWidth - dx);
+if (layoutConfig.locked) {
+newHeight = newWidth / layoutConfig.aspectRatio;
+newTop = startTop + (startHeight - newHeight);
+} else {
+newHeight = Math.max(minSize, startHeight - dy);
+newTop = startTop + (startHeight - newHeight);
+}
+newLeft = startLeft + (startWidth - newWidth);
+}
+
 newWidth = Math.min(newWidth, parent.clientWidth - newLeft);
 newHeight = Math.min(newHeight, parent.clientHeight - newTop);
 newLeft = Math.max(0, Math.min(newLeft, parent.clientWidth - newWidth));
 newTop = Math.max(0, Math.min(newTop, parent.clientHeight - newHeight));
+
 elements.cropGuide.style.width = `${newWidth}px`;
 elements.cropGuide.style.height = `${newHeight}px`;
 elements.cropGuide.style.left = `${newLeft}px`;
@@ -705,6 +878,7 @@ elements.cropGuide.style.top = `${newTop}px`;
 updateCropInfo();
 }
 }
+
 function onMouseUp() {
 isDragging = false;
 isResizing = false;
@@ -715,13 +889,15 @@ document.removeEventListener('mouseup', onMouseUp);
 
 if (elements.generateArtBtn) elements.generateArtBtn.addEventListener('click', handleArtGeneration);
 if (elements.downloadOriginalBtn) elements.downloadOriginalBtn.addEventListener('click', handleDownloadOriginal);
-if (elements.downloadCroppedBtn) elements.downloadCroppedBtn.addEventListener('click', handleDownloadCropped);
+if (elements.saveToAssetsBtn) elements.saveToAssetsBtn.addEventListener('click', handleSaveToAssets);
 if (elements.doodledexSelect) elements.doodledexSelect.addEventListener('change', (e) => {
 const dna = DOODLEMON_DNA[e.target.value]?.dna || '';
 elements.dnaPrompt.value = dna;
+updateCardPreview();
 });
 if (elements.cardLayoutSelect) elements.cardLayoutSelect.addEventListener('change', (e) => {
 setPreviewLayout(e.target.value);
+updateCardPreview();
 });
 
 initialize();
