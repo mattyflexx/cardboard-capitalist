@@ -303,7 +303,7 @@ Generate and crop art to see card preview
 <div class="form-group">
 <label for="card-layout-select">Card Layout:</label>
 <select id="card-layout-select">
-<option value="BASE">Base Card Art (5:7 ratio) - 300x420px</option>
+<option value="BASE">Base Card Art (Horizontal) - 1887x1203px</option>
 <option value="INSERT">Insert Card (Full) - 300x420px</option>
 </select>
 </div>
@@ -496,8 +496,24 @@ function addNewDoodlemon(number, name, dna) {
 
 // --- Card Layouts with proper TCG aspect ratios ---
 const CARD_LAYOUTS = {
-BASE: { width: 300, height: 420, name: "Base Card Art (5:7)", aspectRatio: 5/7, locked: true },
-INSERT: { width: 300, height: 420, name: "Insert Card (Full)", aspectRatio: 5/7, locked: false }
+BASE: { 
+    width: 1887, 
+    height: 1203, 
+    name: "Base Card Art (Horizontal)", 
+    aspectRatio: 1887/1203, 
+    locked: true,
+    offsetX: 120,
+    offsetY: 120
+},
+INSERT: { 
+    width: 300, 
+    height: 420, 
+    name: "Insert Card (Full)", 
+    aspectRatio: 300/420, 
+    locked: false,
+    offsetX: 0,
+    offsetY: 0
+}
 };
 
 let generatedImageUrl = null;
@@ -547,14 +563,30 @@ const layoutConfig = CARD_LAYOUTS[layout];
 elements.dimensionInfo.innerHTML = `<div><strong>${layoutConfig.name} (${layoutConfig.width}x${layoutConfig.height}px):</strong> ${getLayoutDescription(layout)}</div>
 <div class="mt-1 text-xs text-gray-400">Aspect ratio: ${layoutConfig.aspectRatio.toFixed(2)}:1 ${layoutConfig.locked ? '(locked)' : ''}</div>`;
 elements.exactDimensions.textContent = `${layoutConfig.width}x${layoutConfig.height}px`;
-_setCropGuideDimensions(layoutConfig.width, layoutConfig.height, 0, 0);
+
+// Scale down the crop guide for display while maintaining proportions
+const previewContainer = document.getElementById('art-preview-container');
+const containerWidth = previewContainer ? previewContainer.clientWidth : 400;
+const containerHeight = previewContainer ? previewContainer.clientHeight : 400;
+
+// Calculate scale factor to fit the crop area within the preview container
+const scaleX = Math.min(containerWidth * 0.8 / layoutConfig.width, 1);
+const scaleY = Math.min(containerHeight * 0.8 / layoutConfig.height, 1);
+const scale = Math.min(scaleX, scaleY);
+
+const displayWidth = layoutConfig.width * scale;
+const displayHeight = layoutConfig.height * scale;
+const displayOffsetX = (layoutConfig.offsetX || 0) * scale;
+const displayOffsetY = (layoutConfig.offsetY || 0) * scale;
+
+_setCropGuideDimensions(displayWidth, displayHeight, displayOffsetY, displayOffsetX);
 elements.cropGuide.style.display = 'block';
 updateCropInfo();
 }
 function getLayoutDescription(layout) {
 switch(layout) {
-case 'BASE': return 'Standard TCG card art area with 5:7 aspect ratio';
-case 'INSERT': return 'Full insert card area (can be any ratio)';
+case 'BASE': return 'Horizontal crop area matching the transparent window in the template';
+case 'INSERT': return 'Full card template dimensions (can be any ratio)';
 default: return 'Card format';
 }
 }
@@ -710,16 +742,9 @@ const layoutObj = CARD_LAYOUTS[layout];
 const canvas = document.createElement('canvas');
 const ctx = canvas.getContext('2d');
 
-// Set canvas to proper card art dimensions
-if (layout === 'BASE') {
-// Base cards use 5:7 aspect ratio
-canvas.width = 300; // 5 * 60
-canvas.height = 420; // 7 * 60
-} else {
-// Insert cards can use any ratio
+// Set canvas to proper card art dimensions based on layout
 canvas.width = layoutObj.width;
 canvas.height = layoutObj.height;
-}
 
 const img = new Image();
 img.onload = function() {
@@ -728,14 +753,23 @@ const containerRect = previewContainer.getBoundingClientRect();
 const imgRect = currentImageElement.getBoundingClientRect();
 const scaleX = img.naturalWidth / imgRect.width;
 const scaleY = img.naturalHeight / imgRect.height;
-const cropX = (elements.cropGuide.offsetLeft - (imgRect.left - containerRect.left)) * scaleX;
-const cropY = (elements.cropGuide.offsetTop - (imgRect.top - containerRect.top)) * scaleY;
-const cropWidth = canvas.width * scaleX;
-const cropHeight = canvas.height * scaleY;
+
+// Calculate the scale factor used for display
+const containerWidth = previewContainer.clientWidth;
+const containerHeight = previewContainer.clientHeight;
+const displayScaleX = Math.min(containerWidth * 0.8 / layoutObj.width, 1);
+const displayScaleY = Math.min(containerHeight * 0.8 / layoutObj.height, 1);
+const displayScale = Math.min(displayScaleX, displayScaleY);
+
+// Convert crop guide position back to actual image coordinates
+const actualCropX = ((elements.cropGuide.offsetLeft - (layoutObj.offsetX || 0) * displayScale) / displayScale) * scaleX;
+const actualCropY = ((elements.cropGuide.offsetTop - (layoutObj.offsetY || 0) * displayScale) / displayScale) * scaleY;
+const actualCropWidth = layoutObj.width * scaleX;
+const actualCropHeight = layoutObj.height * scaleY;
 
 ctx.drawImage(
 img,
-Math.max(0, cropX), Math.max(0, cropY), cropWidth, cropHeight,
+Math.max(0, actualCropX), Math.max(0, actualCropY), actualCropWidth, actualCropHeight,
 0, 0, canvas.width, canvas.height
 );
 
@@ -821,25 +855,35 @@ ctx.fillRect(0, 0, canvas.width, canvas.height);
 const img = new Image();
 img.onload = function() {
 // Draw cropped art
+const layoutObj = CARD_LAYOUTS[layout];
 const artWidth = canvas.width * 0.9;
-const artHeight = artWidth * (7/5); // 5:7 aspect ratio
+const artHeight = artWidth * (layoutObj.height / layoutObj.width); // Use actual aspect ratio
 const artX = (canvas.width - artWidth) / 2;
 const artY = 20;
 
-// Get crop area from the crop guide
+// Get crop area from the crop guide with proper scaling
 const previewContainer = document.getElementById('art-preview-container');
 const containerRect = previewContainer.getBoundingClientRect();
 const imgRect = currentImageElement.getBoundingClientRect();
 const scaleX = img.naturalWidth / imgRect.width;
 const scaleY = img.naturalHeight / imgRect.height;
-const cropX = (elements.cropGuide.offsetLeft - (imgRect.left - containerRect.left)) * scaleX;
-const cropY = (elements.cropGuide.offsetTop - (imgRect.top - containerRect.top)) * scaleY;
-const cropWidth = CARD_LAYOUTS[layout].width * scaleX;
-const cropHeight = CARD_LAYOUTS[layout].height * scaleY;
+
+// Calculate display scale factor
+const containerWidth = previewContainer.clientWidth;
+const containerHeight = previewContainer.clientHeight;
+const displayScaleX = Math.min(containerWidth * 0.8 / layoutObj.width, 1);
+const displayScaleY = Math.min(containerHeight * 0.8 / layoutObj.height, 1);
+const displayScale = Math.min(displayScaleX, displayScaleY);
+
+// Convert crop guide position back to actual image coordinates
+const actualCropX = ((elements.cropGuide.offsetLeft - (layoutObj.offsetX || 0) * displayScale) / displayScale) * scaleX;
+const actualCropY = ((elements.cropGuide.offsetTop - (layoutObj.offsetY || 0) * displayScale) / displayScale) * scaleY;
+const actualCropWidth = layoutObj.width * scaleX;
+const actualCropHeight = layoutObj.height * scaleY;
 
 ctx.drawImage(
 img,
-Math.max(0, cropX), Math.max(0, cropY), cropWidth, cropHeight,
+Math.max(0, actualCropX), Math.max(0, actualCropY), actualCropWidth, actualCropHeight,
 artX, artY, artWidth, artHeight
 );
 
