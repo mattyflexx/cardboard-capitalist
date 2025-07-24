@@ -398,7 +398,7 @@ const DOODLEMON_DNA = {
 49: { name: "Krystuk", dna: "The evolved form of Glimmer. A large, beautiful golem made of perfectly clear, interlocking crystals. Despite its sharp, geometric appearance, it is surprisingly gentle and kind, often seen protecting smaller creatures." },
 50: { name: "Carapace", dna: "A small, six-legged insectoid creature that wears the hollowed-out, slightly-too-large exoskeleton of its previous self as armor. It peeks out from the head-hole of its old shell with large, timid eyes." },
 51: { name: "Tangler", dna: "A chaotic, walking mess of sentient, sparking electrical wires and data cables of various colors (red, blue, yellow, black). Two frayed wires act as 'eyes,' sparking with electricity when it gets agitated." },
-52: { name: "Kangasmind", dna: "228Z" },
+52: { name: "Kangasmind", dna: "A mysterious psychic creature that exists between dimensions. Its form shifts constantly between solid and ethereal states." },
 53: { name: "Ponysea", dna: "A creature that looks like a tiny, stout land pony with a coat the color of wet sand. It sweats pure, clean spring water, and its mane and tail appear to be made of flowing water. It can find underground water sources by stomping its hoof." },
 54: { name: "Geyserdra", dna: "The evolved form of Ponysea. It now gallops across plains, its mane and tail having become a magnificent plume of steam and mist. It can shoot powerful, heated geysers from its snout with great force." },
 55: { name: "Jeweling", dna: "The evolved form of Ponysea. Its body is made of living, polished gold, and its horn has grown into a massive, perfectly cut, sparkling ruby. It is incredibly rare and sought after by treasure hunters." },
@@ -406,11 +406,11 @@ const DOODLEMON_DNA = {
 57: { name: "Kettlehound", dna: "The evolved form of Teapup. It has outgrown its pot and now stands as a proud, hound-like creature made of gleaming, polished ceramic. It can whistle like a boiling kettle and shoot jets of scalding steam from its mouth." },
 58: { name: "Flickerite", dna: "A creature whose body is an old-fashioned, hand-cranked film projector. It walks on a small tripod and its lens-eye projects silent, black-and-white images onto any surface to communicate." },
 59: { name: "Prunther", dna: "A gentle and elegant creature resembling a praying mantis. Its body is a leafy green color, and its limbs are long and stick-like. Instead of claws, its two primary forelimbs are a pair of incredibly sharp, metallic, silver-colored pruning shears, which it uses to expertly trim plants into beautiful topiaries." },
-60: { name: "Lorelei", dna: "391Z" },
+60: { name: "Lorelei", dna: "A beautiful aquatic creature with flowing fins that shimmer like flowing water. Its song can calm the most turbulent seas." },
 61: { name: "Siphohm", dna: "It doesn't produce electricity; it consumes it. This creature looks like a large, spiky, blue and yellow rodent with a long, copper-tipped tail that it inserts into electrical sockets. Its fur is rubbery and insulated, and it often has a dazed, overcharged look in its eyes." },
 62: { name: "Cryomar", dna: "A creature that lives in frozen volcanoes. Its body is formed from jagged, black volcanic rock covered in a thick layer of sharp, blue-white ice. It breathes out a freezing mist, and its eyes glow from deep within its rocky head." },
 63: { name: "Polarsir", dna: "The evolved form of Cryomar. Its horn has become a giant, powerful U-shaped electromagnet. It can use magnetic fields to attract or violently repel metallic objects, and its body is constantly surrounded by a faint magnetic shimmer." },
-64: { name: "Plauros", dna: "064X" },
+64: { name: "Plauros", dna: "An ancient and powerful creature with scales that gleam like polished obsidian. Its presence commands respect from all who witness its terrible majesty." },
 65: { name: "Grubble", dna: "Considered incredibly weak, it's a small, stone-like grub that does little more than inch along the ground, nibbling on minerals. Its body is grey and lumpy, resembling a simple pebble with two beady eyes." },
 66: { name: "Saigados", dna: "Instead of a raging sea serpent, Grubble evolves into a small, wise, and incredibly powerful sage-like dragon. It floats peacefully, its body long and serpentine but made of smooth, white stone. Its eyes glow with ancient wisdom, and it speaks telepathically." },
 67: { name: "Duneas", dna: "A gentle giant that resembles a tortoise with a massive, sandy shell that looks like a miniature desert dune. It ferries travelers across vast deserts, storing immense amounts of water within its shell, which it can share with those in need." },
@@ -772,10 +772,20 @@ if (toast.parentNode) { toast.remove(); }
 }
 
 function downloadImage(url, filename) {
+const link = document.createElement('a');
+link.href = url;
+link.download = filename;
+document.body.appendChild(link);
+link.click();
+document.body.removeChild(link);
+}
+
+function setupCropGuideInteraction() {
 let isDragging = false;
 let isResizing = false;
 let currentHandle;
 let startX, startY, startLeft, startTop, startWidth, startHeight;
+
 elements.cropGuide.addEventListener('mousedown', (e) => {
 e.preventDefault();
 startLeft = elements.cropGuide.offsetLeft;
