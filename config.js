@@ -125,3 +125,40 @@ export const TCG_SETS = {
 
 // This map is no longer needed because paths are generated automatically.
 export const DOODLEMON_ART = {};
+
+// Custom Doodlemon management
+export function loadCustomDoodlemon() {
+    try {
+        const customData = localStorage.getItem('customDoodlemon');
+        return customData ? JSON.parse(customData) : {};
+    } catch (error) {
+        console.error('Error loading custom Doodlemon:', error);
+        return {};
+    }
+}
+
+export function getAllDoodlemonForGame() {
+    const customDoodlemon = loadCustomDoodlemon();
+    const result = {};
+    
+    // Create a combined map with both default and custom Doodlemon
+    // Default Doodlemon from cards
+    TCG_SETS.genesis.cards.forEach(card => {
+        if (!result[card.doodledexNum]) {
+            result[card.doodledexNum] = { name: card.name, img: card.img };
+        }
+    });
+    
+    // Add custom Doodlemon
+    Object.entries(customDoodlemon).forEach(([id, data]) => {
+        const paddedDexNum = String(id).padStart(3, '0');
+        const formattedName = data.name.toLowerCase().replace(/\s+/g, '-');
+        result[id] = { 
+            name: data.name, 
+            img: `${ASSET_PATH}${paddedDexNum}-${formattedName}.png`,
+            isCustom: true
+        };
+    });
+    
+    return result;
+}

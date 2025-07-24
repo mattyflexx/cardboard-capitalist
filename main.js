@@ -1,4 +1,4 @@
-import { TCG_SETS, ASSETS, LAYOUT_BLUEPRINTS } from './config.js';
+import { TCG_SETS, ASSETS, LAYOUT_BLUEPRINTS, getAllDoodlemonForGame } from './config.js';
 import { gameState, updateGameState, calculateNetWorth, getCardValue, determineCardCondition, updateMarket, initializeStats, updateStats, ACHIEVEMENTS, CARD_CONDITIONS } from './state.js';
 
 const DOM = {
@@ -272,13 +272,7 @@ function renderDoodleDexView(container) {
     dexDiv.className = 'space-y-4';
     
     const ownedDoodlemon = new Set();
-    const allDoodlemon = {};
-
-    TCG_SETS.genesis.cards.forEach(card => {
-        if (!allDoodlemon[card.doodledexNum]) {
-            allDoodlemon[card.doodledexNum] = { name: card.name, img: card.img };
-        }
-    });
+    const allDoodlemon = getAllDoodlemonForGame();
 
     Object.values(gameState.player.collection).forEach(cardData => {
         ownedDoodlemon.add(cardData.cardInfo.doodledexNum);
@@ -289,7 +283,8 @@ function renderDoodleDexView(container) {
     
     Object.keys(allDoodlemon).sort((a,b) => a - b).forEach(doodledexNum => {
         const dexEntry = document.createElement('div');
-        dexEntry.className = 'bg-gray-800 p-4 rounded-lg text-center';
+        const isCustom = allDoodlemon[doodledexNum].isCustom;
+        dexEntry.className = `bg-gray-800 p-4 rounded-lg text-center ${isCustom ? 'border-2 border-purple-500' : ''}`;
         
         const isOwned = ownedDoodlemon.has(parseInt(doodledexNum));
         const artUrl = allDoodlemon[doodledexNum].img;
@@ -301,7 +296,7 @@ function renderDoodleDexView(container) {
                     `<span class="text-gray-500 text-2xl">?</span>`
                 }
             </div>
-            <p class="text-sm ${isOwned ? 'text-white' : 'text-gray-500'}">#${String(doodledexNum).padStart(3, '0')}</p>
+            <p class="text-sm ${isOwned ? 'text-white' : 'text-gray-500'}">#${String(doodledexNum).padStart(3, '0')} ${isCustom ? '🆕' : ''}</p>
             <p class="text-xs ${isOwned ? 'text-gray-300' : 'text-gray-600'}">${isOwned ? allDoodlemon[doodledexNum].name : 'Unknown'}</p>
         `;
         

@@ -270,10 +270,22 @@ Generate and crop art to see card preview
 <label for="doodledex-select">Choose Doodlemon:</label>
 <select id="doodledex-select">
 <option value="">-- Choose a creature --</option>
+<option value="ADD_NEW">+ Add New Doodlemon</option>
 </select>
 </div>
+<div id="new-doodlemon-form" class="form-group hidden">
+<label>New Doodlemon Details:</label>
+<div style="display: flex; gap: 10px; margin-bottom: 8px;">
+<div style="flex: 1;">
+<input type="number" id="new-doodlemon-number" placeholder="Number (e.g., 88)" min="1" max="999" style="width: 100%;">
+</div>
+<div style="flex: 2;">
+<input type="text" id="new-doodlemon-name" placeholder="Name (e.g., Flamewyrm)" style="width: 100%;">
+</div>
+</div>
+</div>
 <div class="form-group">
-<label for="dna-prompt">Creature DNA (auto-filled):</label>
+<label for="dna-prompt">Creature DNA:</label>
 <textarea id="dna-prompt" readonly placeholder="Select a Doodlemon to see its DNA description..."></textarea>
 </div>
 <div class="form-group">
@@ -436,6 +448,52 @@ const DOODLEMON_DNA = {
 87: { name: "Glitchra", dna: "A legendary creature believed to be a digital being that escaped into the physical world. Its form is unstable, constantly glitching and distorting between a vaguely draconic shape and a chaotic mess of pixels, static, and corrupted data. It speaks in a garbled mix of dial-up modem sounds and distorted audio clips." }
 };
 
+// --- Custom Doodlemon Management ---
+function loadCustomDoodlemon() {
+    try {
+        const customData = localStorage.getItem('customDoodlemon');
+        return customData ? JSON.parse(customData) : {};
+    } catch (error) {
+        console.error('Error loading custom Doodlemon:', error);
+        return {};
+    }
+}
+
+function saveCustomDoodlemon(customDoodlemon) {
+    try {
+        localStorage.setItem('customDoodlemon', JSON.stringify(customDoodlemon));
+        return true;
+    } catch (error) {
+        console.error('Error saving custom Doodlemon:', error);
+        return false;
+    }
+}
+
+function getAllDoodlemon() {
+    const customDoodlemon = loadCustomDoodlemon();
+    return { ...DOODLEMON_DNA, ...customDoodlemon };
+}
+
+function addNewDoodlemon(number, name, dna) {
+    const customDoodlemon = loadCustomDoodlemon();
+    const allDoodlemon = getAllDoodlemon();
+    
+    // Validate number doesn't already exist
+    if (allDoodlemon[number]) {
+        throw new Error(`Doodlemon #${number} already exists: ${allDoodlemon[number].name}`);
+    }
+    
+    // Validate name doesn't already exist
+    const existingNames = Object.values(allDoodlemon).map(d => d.name.toLowerCase());
+    if (existingNames.includes(name.toLowerCase())) {
+        throw new Error(`A Doodlemon named "${name}" already exists`);
+    }
+    
+    customDoodlemon[number] = { name, dna };
+    saveCustomDoodlemon(customDoodlemon);
+    return true;
+}
+
 // --- Card Layouts with proper TCG aspect ratios ---
 const CARD_LAYOUTS = {
 BASE: { width: 300, height: 420, name: "Base Card Art (5:7)", aspectRatio: 5/7, locked: true },
@@ -448,6 +506,9 @@ const DEFAULT_STYLE_PROMPT = "Professional TCG art style, clean vector illustrat
 
 const elements = {
 doodledexSelect: document.getElementById('doodledex-select'),
+newDoodlemonForm: document.getElementById('new-doodlemon-form'),
+newDoodlemonNumber: document.getElementById('new-doodlemon-number'),
+newDoodlemonName: document.getElementById('new-doodlemon-name'),
 dnaPrompt: document.getElementById('dna-prompt'),
 stylePrompt: document.getElementById('style-prompt'),
 scenePrompt: document.getElementById('scene-prompt'),
@@ -514,8 +575,15 @@ generateCardPreview();
 }
 function populateSelectors() {
 elements.doodledexSelect.innerHTML = '<option value="">-- Choose a creature --</option>';
-for (const id in DOODLEMON_DNA) {
-elements.doodledexSelect.innerHTML += `<option value="${id}">${String(id).padStart(3,'0')}: ${DOODLEMON_DNA[id].name}</option>`;
+elements.doodledexSelect.innerHTML += '<option value="ADD_NEW">+ Add New Doodlemon</option>';
+
+const allDoodlemon = getAllDoodlemon();
+const sortedIds = Object.keys(allDoodlemon).sort((a, b) => parseInt(a) - parseInt(b));
+
+for (const id of sortedIds) {
+    const isCustom = !DOODLEMON_DNA[id];
+    const prefix = isCustom ? '🆕 ' : '';
+    elements.doodledexSelect.innerHTML += `<option value="${id}">${prefix}${String(id).padStart(3,'0')}: ${allDoodlemon[id].name}</option>`;
 }
 }
 
@@ -527,9 +595,35 @@ return;
 }
 localStorage.setItem('geminiApiKey', apiKey);
 
-if (!elements.doodledexSelect.value || !elements.dnaPrompt.value || !elements.scenePrompt.value) {
-showToast("Please select a Doodlemon, ensure DNA is loaded, and write a scene prompt.", "error");
-return;
+// Validation for new Doodlemon
+if (elements.doodledexSelect.value === 'ADD_NEW') {
+    const number = elements.newDoodlemonNumber.value;
+    const name = elements.newDoodlemonName.value;
+    const dna = elements.dnaPrompt.value;
+    
+    if (!number || !name || !dna || !elements.scenePrompt.value) {
+        showToast("Please fill in all fields: number, name, DNA description, and scene prompt.", "error");
+        return;
+    }
+    
+    // Try to add the new Doodlemon
+    try {
+        addNewDoodlemon(parseInt(number), name.trim(), dna.trim());
+        showToast(`New Doodlemon #${number} "${name}" added successfully!`, "success");
+        
+        // Refresh the dropdown and select the new Doodlemon
+        populateSelectors();
+        elements.doodledexSelect.value = number;
+        elements.newDoodlemonForm.classList.add('hidden');
+        elements.dnaPrompt.setAttribute('readonly', 'true');
+        
+    } catch (error) {
+        showToast(`Error adding new Doodlemon: ${error.message}`, "error");
+        return;
+    }
+} else if (!elements.doodledexSelect.value || !elements.dnaPrompt.value || !elements.scenePrompt.value) {
+    showToast("Please select a Doodlemon, ensure DNA is loaded, and write a scene prompt.", "error");
+    return;
 }
 
 const finalPrompt = `${elements.stylePrompt.value}, ${elements.dnaPrompt.value}, ${elements.scenePrompt.value}`;
@@ -608,7 +702,8 @@ showToast("No image to save. Please generate art first.", "error");
 return;
 }
 const selectedDoodlemonId = elements.doodledexSelect.value;
-const selectedDoodlemon = DOODLEMON_DNA[selectedDoodlemonId];
+const allDoodlemon = getAllDoodlemon();
+const selectedDoodlemon = allDoodlemon[selectedDoodlemonId];
 const layout = elements.cardLayoutSelect.value;
 const layoutObj = CARD_LAYOUTS[layout];
 
@@ -663,24 +758,35 @@ img.src = generatedImageUrl;
 }
 
 function showToast(message, type = 'info') {
-const link = document.createElement('a');
-link.href = url;
-link.download = filename;
-document.body.appendChild(link);
-link.click();
-document.body.removeChild(link);
+if (!elements.toastContainer) return;
+const toast = document.createElement('div');
+toast.className = `toast ${type}`;
+toast.textContent = message;
+elements.toastContainer.appendChild(toast);
+setTimeout(() => { toast.classList.add('show'); }, 10);
+setTimeout(() => {
+toast.classList.remove('show');
+toast.addEventListener('transitionend', () => {
+if (toast.parentNode) { toast.remove(); }
+});
+}, 4000);
 }
 
 function updateCardPreview() {
 const selectedDoodlemonId = elements.doodledexSelect.value;
 const layout = elements.cardLayoutSelect.value;
 
-if (!selectedDoodlemonId) {
+if (!selectedDoodlemonId || selectedDoodlemonId === 'ADD_NEW') {
 elements.cardPreviewInfo.textContent = 'Select a Doodlemon to see preview';
 return;
 }
 
-const selectedDoodlemon = DOODLEMON_DNA[selectedDoodlemonId];
+const allDoodlemon = getAllDoodlemon();
+const selectedDoodlemon = allDoodlemon[selectedDoodlemonId];
+if (!selectedDoodlemon) {
+elements.cardPreviewInfo.textContent = 'Select a Doodlemon to see preview';
+return;
+}
 const layoutConfig = CARD_LAYOUTS[layout];
 
 elements.cardPreviewInfo.innerHTML = `
@@ -695,11 +801,13 @@ generateCardPreview();
 }
 
 function generateCardPreview() {
-if (!generatedImageUrl || !elements.doodledexSelect.value) return;
+if (!generatedImageUrl || !elements.doodledexSelect.value || elements.doodledexSelect.value === 'ADD_NEW') return;
 
 const canvas = elements.cardPreviewCanvas;
 const ctx = canvas.getContext('2d');
-const selectedDoodlemon = DOODLEMON_DNA[elements.doodledexSelect.value];
+const allDoodlemon = getAllDoodlemon();
+const selectedDoodlemon = allDoodlemon[elements.doodledexSelect.value];
+if (!selectedDoodlemon) return;
 const layout = elements.cardLayoutSelect.value;
 
 // Set up canvas dimensions (card is 5:7 ratio)
@@ -756,19 +864,6 @@ elements.cardPreviewCanvas.style.display = 'block';
 elements.cardPreviewPlaceholder.style.display = 'none';
 };
 img.src = generatedImageUrl;
-}
-if (!elements.toastContainer) return;
-const toast = document.createElement('div');
-toast.className = `toast ${type}`;
-toast.textContent = message;
-elements.toastContainer.appendChild(toast);
-setTimeout(() => { toast.classList.add('show'); }, 10);
-setTimeout(() => {
-toast.classList.remove('show');
-toast.addEventListener('transitionend', () => {
-if (toast.parentNode) { toast.remove(); }
-});
-}, 4000);
 }
 
 function downloadImage(url, filename) {
@@ -891,8 +986,40 @@ if (elements.generateArtBtn) elements.generateArtBtn.addEventListener('click', h
 if (elements.downloadOriginalBtn) elements.downloadOriginalBtn.addEventListener('click', handleDownloadOriginal);
 if (elements.saveToAssetsBtn) elements.saveToAssetsBtn.addEventListener('click', handleSaveToAssets);
 if (elements.doodledexSelect) elements.doodledexSelect.addEventListener('change', (e) => {
-const dna = DOODLEMON_DNA[e.target.value]?.dna || '';
-elements.dnaPrompt.value = dna;
+const selectedValue = e.target.value;
+
+if (selectedValue === 'ADD_NEW') {
+    // Show new Doodlemon form
+    elements.newDoodlemonForm.classList.remove('hidden');
+    elements.dnaPrompt.removeAttribute('readonly');
+    elements.dnaPrompt.value = '';
+    elements.dnaPrompt.placeholder = 'Enter DNA description for your new Doodlemon...';
+    
+    // Clear other fields
+    elements.newDoodlemonNumber.value = '';
+    elements.newDoodlemonName.value = '';
+    
+    // Suggest next available number
+    const allDoodlemon = getAllDoodlemon();
+    const maxId = Math.max(...Object.keys(allDoodlemon).map(id => parseInt(id)));
+    elements.newDoodlemonNumber.value = maxId + 1;
+} else if (selectedValue) {
+    // Hide new Doodlemon form and load existing data
+    elements.newDoodlemonForm.classList.add('hidden');
+    elements.dnaPrompt.setAttribute('readonly', 'true');
+    elements.dnaPrompt.placeholder = 'Select a Doodlemon to see its DNA description...';
+    
+    const allDoodlemon = getAllDoodlemon();
+    const dna = allDoodlemon[selectedValue]?.dna || '';
+    elements.dnaPrompt.value = dna;
+} else {
+    // Reset form
+    elements.newDoodlemonForm.classList.add('hidden');
+    elements.dnaPrompt.setAttribute('readonly', 'true');
+    elements.dnaPrompt.value = '';
+    elements.dnaPrompt.placeholder = 'Select a Doodlemon to see its DNA description...';
+}
+
 updateCardPreview();
 });
 if (elements.cardLayoutSelect) elements.cardLayoutSelect.addEventListener('change', (e) => {
