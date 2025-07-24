@@ -13,7 +13,6 @@ const DOM = {
     loupeModal: document.getElementById('loupe-view-modal'),
     loupeCardContainer: document.getElementById('card-image-container'),
     closeLoupeBtn: document.getElementById('close-loupe-btn'),
-    blueprintModeBtn: document.getElementById('blueprint-mode-btn'),
     navContainer: document.getElementById('main-nav'),
     nextDayBtn: document.getElementById('next-day-btn'),
 };
@@ -62,7 +61,6 @@ function initializeGame() {
 
 function renderMainView(viewName) {
     DOM.mainView.innerHTML = '';
-    DOM.mainView.classList.remove('blueprint-mode-active');
     gameState.ui.currentView = viewName;
 
     switch(viewName) {
@@ -89,11 +87,6 @@ function renderMainView(viewName) {
         case 'settings':
             DOM.viewTitle.textContent = 'Settings';
             renderSettingsView(DOM.mainView);
-            break;
-        case 'blueprint':
-            DOM.viewTitle.textContent = 'Blueprint Mode';
-            DOM.mainView.classList.add('blueprint-mode-active');
-            renderBlueprintView(DOM.mainView);
             break;
         case 'card-management':
             if (gameState.ui.selectedCard) {
@@ -321,98 +314,6 @@ function renderDoodleDexView(container) {
 }
 
 
-function renderBlueprintView(container) {
-    container.innerHTML = `
-        <div class="flex flex-col items-center gap-4">
-            <div id="blueprint-canvas-wrapper">
-                <canvas id="blueprint-canvas" width="750" height="1050"></canvas>
-                <div id="blueprint-selection-box" class="hidden"></div>
-            </div>
-            <div class="flex gap-4">
-                 <button id="bp-standard-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Load Standard Frame</button>
-                 <button id="bp-fullart-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Load Full-Art Frame</button>
-            </div>
-        </div>
-        <div id="blueprint-info-box">X: 0, Y: 0</div>
-    `;
-
-    const canvas = document.getElementById('blueprint-canvas');
-    const ctx = canvas.getContext('2d');
-    const infoBox = document.getElementById('blueprint-info-box');
-    const selectionBox = document.getElementById('blueprint-selection-box');
-    
-    let currentFrame = new Image();
-    currentFrame.crossOrigin = "Anonymous";
-
-    function loadFrame(frameUrl) {
-        currentFrame.src = frameUrl;
-        currentFrame.onload = () => ctx.drawImage(currentFrame, 0, 0, 750, 1050);
-    }
-
-    loadFrame(ASSETS.frames.standard);
-
-    document.getElementById('bp-standard-btn').addEventListener('click', () => loadFrame(ASSETS.frames.standard));
-    document.getElementById('bp-fullart-btn').addEventListener('click', () => loadFrame(ASSETS.frames.fullArt));
-
-    let isDrawing = false;
-    let startX, startY;
-
-    canvas.addEventListener('mousedown', e => {
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-        isDrawing = true;
-        startX = (e.clientX - rect.left) * scaleX;
-        startY = (e.clientY - rect.top) * scaleY;
-        
-        selectionBox.style.left = `${e.clientX - rect.left}px`;
-        selectionBox.style.top = `${e.clientY - rect.top}px`;
-        selectionBox.style.width = '0px';
-        selectionBox.style.height = '0px';
-        selectionBox.classList.remove('hidden');
-    });
-
-    canvas.addEventListener('mousemove', e => {
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-        const x = Math.round((e.clientX - rect.left) * scaleX);
-        const y = Math.round((e.clientY - rect.top) * scaleY);
-        infoBox.textContent = `X: ${x}, Y: ${y}`;
-
-        if (isDrawing) {
-            const currentX = e.clientX - rect.left;
-            const currentY = e.clientY - rect.top;
-            const startRectX = startX / scaleX;
-            const startRectY = startY / scaleY;
-            selectionBox.style.width = `${currentX - startRectX}px`;
-            selectionBox.style.height = `${currentY - startRectY}px`;
-        }
-    });
-
-    canvas.addEventListener('mouseup', e => {
-        if (!isDrawing) return;
-        isDrawing = false;
-        selectionBox.classList.add('hidden');
-        
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-        
-        const finalEndX = (e.clientX - rect.left) * scaleX;
-        const finalEndY = (e.clientY - rect.top) * scaleY;
-
-        const finalRect = {
-            x: Math.round(Math.min(startX, finalEndX)),
-            y: Math.round(Math.min(startY, finalEndY)),
-            width: Math.abs(Math.round(finalEndX - startX)),
-            height: Math.abs(Math.round(finalEndY - startY))
-        };
-        console.log(`Blueprint Box: { x: ${finalRect.x}, y: ${finalRect.y}, width: ${finalRect.width}, height: ${finalRect.height} }`);
-        logMessage(`Box: x:${finalRect.x} y:${finalRect.y} w:${finalRect.width} h:${finalRect.height}`, "success");
-    });
-}
-
 function renderCardManagementView(container, cardId, instanceUid) {
   const cardData = gameState.player.collection[cardId];
   if (!cardData) return;
@@ -491,7 +392,23 @@ function buildCardElement(cardInfo, instance) {
         const doodlemonName = document.createElement('div');
         doodlemonName.className = 'card-doodlemon-name';
         doodlemonName.textContent = 'Doodlemon';
+        
+        // Dynamic text sizing based on content width
+        function adjustTextSize() {
+            const maxWidth = gradientBox.offsetWidth * 0.9; // 90% of container width
+            let fontSize = 20;
+            doodlemonName.style.fontSize = fontSize + 'px';
+            
+            while (doodlemonName.scrollWidth > maxWidth && fontSize > 8) {
+                fontSize -= 1;
+                doodlemonName.style.fontSize = fontSize + 'px';
+            }
+        }
+        
         gradientBox.appendChild(doodlemonName);
+        
+        // Adjust size after element is added to DOM
+        setTimeout(adjustTextSize, 10);
         
         const logoImg = document.createElement('img');
         logoImg.src = `${ASSET_PATH}logo.png`;
@@ -507,6 +424,11 @@ function buildCardElement(cardInfo, instance) {
         const textureOverlay = document.createElement('div');
         textureOverlay.className = 'card-texture-overlay';
         cardInner.appendChild(textureOverlay);
+        
+        // Add holo overlay for insert art cards
+        const holoOverlay = document.createElement('div');
+        holoOverlay.className = 'card-holo-overlay';
+        cardInner.appendChild(holoOverlay);
         
         cardElement.appendChild(cardInner);
         
@@ -574,6 +496,13 @@ function buildCardElement(cardInfo, instance) {
     }
     
     cardElement.appendChild(textOverlay);
+
+    // Add holo effect for Holo Rare cards
+    if (cardInfo.rarity === 'Holo Rare') {
+        const holoOverlay = document.createElement('div');
+        holoOverlay.className = 'card-holo-overlay';
+        cardElement.appendChild(holoOverlay);
+    }
 
     const inspectOverlay = document.createElement('div');
     inspectOverlay.className = 'card-inspect-overlay';
@@ -932,7 +861,6 @@ function setupEventListeners() {
     DOM.closeLoupeBtn.addEventListener('click', closeLoupeView);
     DOM.loupeModal.addEventListener('click', e => { if (e.target === DOM.loupeModal || e.target.classList.contains('modal-backdrop')) closeLoupeView(); });
     
-    DOM.blueprintModeBtn.addEventListener('click', () => renderMainView('blueprint'));
     DOM.nextDayBtn.addEventListener('click', nextDay);
     
     document.addEventListener('keydown', e => {
