@@ -692,6 +692,11 @@ try {
 // UPDATED: Using Vertex AI endpoint with Imagen 4 Ultra model
 // Full model name: imagen-4.0-ultra-generate-preview-06-06
 // Endpoint format: v1 Vertex AI (not v1beta)
+// 
+// USER CONFIGURATION REQUIRED:
+// 1. Set your Google Cloud Project ID where Vertex AI is enabled
+// 2. Ensure you have proper IAM permissions for Vertex AI
+// 3. The API key should have access to Vertex AI services
 const vertexApiUrl = `https://us-central1-aiplatform.googleapis.com/v1/projects/${projectId}/locations/us-central1/publishers/google/models/imagen-4.0-ultra-generate-preview-06-06:predict`;
 
 // UPDATED: Payload structure for Vertex AI Imagen 4 Ultra
@@ -722,7 +727,7 @@ throw new Error(`Vertex AI API error! Status: ${response.status}. Message: ${err
 
 const result = await response.json();
 // UPDATED: Response handling for Vertex AI Imagen 4 Ultra model
-// The response structure may be different from the old Gemini API
+// The response structure may be different from the old Google Generative Language API
 if (result.predictions && result.predictions.length > 0) {
 // Handle both possible response formats
 const prediction = result.predictions[0];
