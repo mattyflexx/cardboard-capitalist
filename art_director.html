@@ -263,14 +263,6 @@ Generate and crop art to see card preview
 <div class="main-content">
 <div class="controls-section">
 <div class="form-group">
-<label for="api-key-input">Google Cloud API Key:</label>
-<input type="password" id="api-key-input" placeholder="Enter your Google Cloud API key"/>
-</div>
-<div class="form-group">
-<label for="project-id-input">Google Cloud Project ID:</label>
-<input type="text" id="project-id-input" placeholder="Enter your Google Cloud Project ID (required for Vertex AI)"/>
-</div>
-<div class="form-group">
 <label for="doodledex-select">Choose Doodlemon:</label>
 <select id="doodledex-select">
 <option value="">-- Choose a creature --</option>
@@ -546,8 +538,6 @@ cropDimensions: document.getElementById('crop-dimensions'),
 cropPosition: document.getElementById('crop-position'),
 dimensionInfo: document.getElementById('dimension-info'),
 exactDimensions: document.getElementById('exact-dimensions'),
-apiKeyInput: document.getElementById('api-key-input'),
-projectIdInput: document.getElementById('project-id-input'),
 toastContainer: document.getElementById('toast-container'),
 cardPreviewCanvas: document.getElementById('card-preview-canvas'),
 cardPreviewPlaceholder: document.getElementById('card-preview-placeholder'),
@@ -560,10 +550,6 @@ elements.stylePrompt.value = DEFAULT_STYLE_PROMPT;
 setPreviewLayout(elements.cardLayoutSelect.value);
 setupCropGuideInteraction();
 updateCardPreview();
-const savedApiKey = localStorage.getItem('vertexApiKey');
-if (savedApiKey) elements.apiKeyInput.value = savedApiKey;
-const savedProjectId = localStorage.getItem('vertexProjectId');
-if (savedProjectId) elements.projectIdInput.value = savedProjectId;
 }
 function setPreviewLayout(layout) {
 const layoutConfig = CARD_LAYOUTS[layout];
@@ -627,23 +613,6 @@ for (const id of sortedIds) {
 }
 
 async function handleArtGeneration() {
-const apiKey = elements.apiKeyInput.value;
-const projectId = elements.projectIdInput.value;
-
-// Validate required credentials for Vertex AI
-if (!apiKey) {
-showToast("Please enter your Google Cloud API key.", "error");
-return;
-}
-if (!projectId) {
-showToast("Please enter your Google Cloud Project ID. This is required for Vertex AI API calls.", "error");
-return;
-}
-
-// Save credentials to localStorage
-localStorage.setItem('vertexApiKey', apiKey);
-localStorage.setItem('vertexProjectId', projectId);
-
 // Validation for new Doodlemon
 if (elements.doodledexSelect.value === 'ADD_NEW') {
     const number = elements.newDoodlemonNumber.value;
@@ -689,59 +658,46 @@ elements.cropInfo.classList.add('hidden');
 generatedImageUrl = null;
 
 try {
-// UPDATED: Using Vertex AI endpoint with Imagen 4 Ultra model
-// Full model name: imagen-4.0-ultra-generate-preview-06-06
-// Endpoint format: v1 Vertex AI (not v1beta)
+// UPDATED: Using imagen-proxy backend instead of calling Vertex AI directly
+// The imagen-proxy backend handles the authentication and API calls securely
+// No client-side API keys or project IDs are required
 // 
-// USER CONFIGURATION REQUIRED:
-// 1. Set your Google Cloud Project ID where Vertex AI is enabled
-// 2. Ensure you have proper IAM permissions for Vertex AI
-// 3. The API key should have access to Vertex AI services
-const vertexApiUrl = `https://us-central1-aiplatform.googleapis.com/v1/projects/${projectId}/locations/us-central1/publishers/google/models/imagen-4.0-ultra-generate-preview-06-06:predict`;
+// CONFIGURATION REQUIRED: Replace the URL below with your actual imagen-proxy deployment URL
+const imagenProxyUrl = 'https://imagen-proxy-XXXX-XX.a.run.app/generate';
 
-// UPDATED: Payload structure for Vertex AI Imagen 4 Ultra
-// Must include aspectRatio parameter set to "16:9" and sampleCount set to 1
+// UPDATED: Payload structure for imagen-proxy backend
+// Simplified payload that matches the backend's expected format
 const payload = {
-instances: [{ 
-prompt: finalPrompt 
-}],
-parameters: { 
+prompt: finalPrompt,
 aspectRatio: "16:9",
 sampleCount: 1
-}
 };
 
-const response = await fetch(vertexApiUrl, {
+const response = await fetch(imagenProxyUrl, {
 method: 'POST',
 headers: { 
-'Content-Type': 'application/json',
-'Authorization': `Bearer ${apiKey}`
+'Content-Type': 'application/json'
 },
 body: JSON.stringify(payload)
 });
 
 if (!response.ok) {
-const errorData = await response.json();
-throw new Error(`Vertex AI API error! Status: ${response.status}. Message: ${errorData.error?.message || 'Unknown error'}`);
+const errorData = await response.json().catch(() => ({}));
+throw new Error(`imagen-proxy API error! Status: ${response.status}. Message: ${errorData.error || errorData.message || 'Unknown error'}`);
 }
 
 const result = await response.json();
-// UPDATED: Response handling for Vertex AI Imagen 4 Ultra model
-// The response structure may be different from the old Google Generative Language API
-if (result.predictions && result.predictions.length > 0) {
-// Handle both possible response formats
-const prediction = result.predictions[0];
-let imageData = null;
+// UPDATED: Response handling for imagen-proxy backend
+// The imagen-proxy backend should return a consistent format with base64 image data
+if (result.image || result.imageData || result.base64Image) {
+// Handle multiple possible response formats from imagen-proxy
+let imageData = result.image || result.imageData || result.base64Image;
 
-if (prediction.bytesBase64Encoded) {
-// Format 1: Direct base64 encoded bytes
-imageData = prediction.bytesBase64Encoded;
-} else if (prediction.generatedImage && prediction.generatedImage.bytesBase64Encoded) {
-// Format 2: Nested in generatedImage object
-imageData = prediction.generatedImage.bytesBase64Encoded;
+// Remove data URL prefix if present
+if (imageData.startsWith('data:image/')) {
+    imageData = imageData.split(',')[1];
 }
 
-if (imageData) {
 generatedImageUrl = `data:image/png;base64,${imageData}`;
 elements.artPreviewImg.src = generatedImageUrl;
 elements.artPreviewImg.classList.remove('hidden');
@@ -751,12 +707,9 @@ elements.downloadHelp.classList.remove('hidden');
 elements.cropInfo.classList.remove('hidden');
 currentImageElement = elements.artPreviewImg;
 updateCardPreview();
-showToast(`Art generation successful using Imagen 4 Ultra (16:9)!`, "success");
+showToast(`Art generation successful using imagen-proxy backend!`, "success");
 } else {
-throw new Error("No image data found in response. Check API response format.");
-}
-} else {
-throw new Error("Invalid response structure from Vertex AI. No predictions found.");
+throw new Error("No image data found in response. Check imagen-proxy backend response format.");
 }
 } catch (error) {
 showToast(`Art generation failed: ${error.message}`, "error");
