@@ -92,8 +92,8 @@ border-radius: 8px;
 .dimension-info { font-size: 0.9rem; color: #d1d5db; }
 #art-preview-container {
 position: relative;
-width: 400px;
-height: 400px;
+width: 480px;
+height: 270px;
 border: 2px dashed #6b7280;
 border-radius: 8px;
 overflow: hidden;
@@ -163,7 +163,7 @@ cursor: move;
 z-index: 10;
 }
 .crop-guide::before {
-content: 'Card Area';
+content: '16:9 Card Area';
 position: absolute;
 top: -25px;
 left: 0;
@@ -228,7 +228,7 @@ gap: 20px;
 padding: 20px;
 }
 .header h1 { font-size: 2rem; }
-#art-preview-container { width: 100%; max-width: 400px; }
+#art-preview-container { width: 100%; max-width: 480px; height: auto; aspect-ratio: 16/9; }
 .download-buttons { flex-direction: column; }
 }
 </style>
@@ -246,7 +246,7 @@ padding: 20px;
 <div style="width: 120px;"></div>
 <div class="card-preview-section">
 <h3 style="color: #f3f4f6; margin-bottom: 15px; font-size: 1.2rem;">Card Preview</h3>
-<div id="card-preview-container" style="position: relative; width: 250px; height: 350px; margin: 0 auto; background: #1f2937; border-radius: 12px; overflow: hidden; border: 2px solid #4b5563;">
+<div id="card-preview-container" style="position: relative; width: 320px; height: 180px; margin: 0 auto; background: #1f2937; border-radius: 12px; overflow: hidden; border: 2px solid #4b5563;">
 <div id="card-preview-placeholder" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #9ca3af; font-size: 0.9rem; text-align: center; padding: 20px;">
 Generate and crop art to see card preview
 </div>
@@ -303,8 +303,8 @@ Generate and crop art to see card preview
 <div class="form-group">
 <label for="card-layout-select">Card Layout:</label>
 <select id="card-layout-select">
-<option value="BASE">Base Card Art (Horizontal) - 1887x1203px</option>
-<option value="INSERT">Insert Card (Full) - 300x420px</option>
+<option value="BASE">Base Card Art (16:9) - 1920x1080px</option>
+<option value="INSERT">Insert Card (16:9) - 384x216px</option>
 </select>
 </div>
 <div id="dimension-info" class="dimension-info"></div>
@@ -341,7 +341,7 @@ Generate art to see preview
 </button>
 </div>
 <div id="download-help" class="download-help hidden">
-<strong>💡 Tip:</strong> Use the blue crop guide to position the card area, then download the cropped image to add it to your collection with the proper naming and aspect ratio.
+<strong>💡 Tip:</strong> Use the blue crop guide to position the 16:9 card area, then download the cropped image to add it to your collection with the proper naming and aspect ratio.
 </div>
 </div>
 </div>
@@ -494,23 +494,23 @@ function addNewDoodlemon(number, name, dna) {
     return true;
 }
 
-// --- Card Layouts with proper TCG aspect ratios ---
+// --- Card Layouts with 16:9 aspect ratios ---
 const CARD_LAYOUTS = {
 BASE: { 
-    width: 1887, 
-    height: 1203, 
-    name: "Base Card Art (Horizontal)", 
-    aspectRatio: 1887/1203, 
+    width: 1920, 
+    height: 1080, 
+    name: "Base Card Art (16:9)", 
+    aspectRatio: 16/9, 
     locked: true,
     offsetX: 120,
-    offsetY: 120
+    offsetY: 68
 },
 INSERT: { 
-    width: 300, 
-    height: 420, 
-    name: "Insert Card (Full)", 
-    aspectRatio: 300/420, 
-    locked: false,
+    width: 384, 
+    height: 216, 
+    name: "Insert Card (16:9)", 
+    aspectRatio: 16/9, 
+    locked: true,
     offsetX: 0,
     offsetY: 0
 }
@@ -585,8 +585,8 @@ updateCropInfo();
 }
 function getLayoutDescription(layout) {
 switch(layout) {
-case 'BASE': return 'Horizontal crop area matching the transparent window in the template';
-case 'INSERT': return 'Full card template dimensions (can be any ratio)';
+case 'BASE': return '16:9 crop area for widescreen card layouts';
+case 'INSERT': return '16:9 card format for modern display standards';
 default: return 'Card format';
 }
 }
@@ -672,23 +672,41 @@ elements.cropInfo.classList.add('hidden');
 generatedImageUrl = null;
 
 try {
-// CORRECTED PAYLOAD for Imagen Model
+// UPDATED PAYLOAD for Imagen 4 Model
 const payload = {
 instances: [{ prompt: finalPrompt }],
 parameters: { "sampleCount": 1 }
 };
-// CORRECTED API ENDPOINT for Imagen Model
-const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
 
-const response = await fetch(apiUrl, {
+// Try Imagen 4 Ultra first, fallback to Imagen 4 if unavailable
+let apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4-ultra:predict?key=${apiKey}`;
+let modelUsed = 'Imagen 4 Ultra';
+
+let response = await fetch(apiUrl, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json' },
 body: JSON.stringify(payload)
 });
 
+// If Imagen 4 Ultra fails, try Imagen 4
+if (!response.ok) {
+const ultraError = await response.json();
+console.log('Imagen 4 Ultra not available, trying Imagen 4:', ultraError.error?.message);
+showToast("Imagen 4 Ultra not available, falling back to Imagen 4...", "info");
+
+apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4:predict?key=${apiKey}`;
+modelUsed = 'Imagen 4';
+
+response = await fetch(apiUrl, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify(payload)
+});
+}
+
 if (!response.ok) {
 const errorData = await response.json();
-throw new Error(`API error! Status: ${response.status}. Message: ${errorData.error?.message || 'Unknown error'}`);
+throw new Error(`API error with ${modelUsed}! Status: ${response.status}. Message: ${errorData.error?.message || 'Unknown error'}`);
 }
 
 const result = await response.json();
@@ -703,7 +721,7 @@ elements.downloadHelp.classList.remove('hidden');
 elements.cropInfo.classList.remove('hidden');
 currentImageElement = elements.artPreviewImg;
 updateCardPreview();
-showToast("Art generation successful!", "success");
+showToast(`Art generation successful using ${modelUsed}!`, "success");
 } else {
 throw new Error("Invalid response structure from API. No image data found.");
 }
@@ -844,9 +862,9 @@ const selectedDoodlemon = allDoodlemon[elements.doodledexSelect.value];
 if (!selectedDoodlemon) return;
 const layout = elements.cardLayoutSelect.value;
 
-// Set up canvas dimensions (card is 5:7 ratio)
-canvas.width = 250;
-canvas.height = 350;
+// Set up canvas dimensions (16:9 ratio for modern cards)
+canvas.width = 320;
+canvas.height = 180;
 
 // Clear canvas
 ctx.fillStyle = '#1f2937';
