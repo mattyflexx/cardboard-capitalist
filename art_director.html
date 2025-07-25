@@ -263,8 +263,12 @@ Generate and crop art to see card preview
 <div class="main-content">
 <div class="controls-section">
 <div class="form-group">
-<label for="api-key-input">Gemini API Key:</label>
-<input type="password" id="api-key-input" placeholder="Enter your Gemini API key"/>
+<label for="api-key-input">Google Cloud API Key:</label>
+<input type="password" id="api-key-input" placeholder="Enter your Google Cloud API key"/>
+</div>
+<div class="form-group">
+<label for="project-id-input">Google Cloud Project ID:</label>
+<input type="text" id="project-id-input" placeholder="Enter your Google Cloud Project ID (required for Vertex AI)"/>
 </div>
 <div class="form-group">
 <label for="doodledex-select">Choose Doodlemon:</label>
@@ -543,6 +547,7 @@ cropPosition: document.getElementById('crop-position'),
 dimensionInfo: document.getElementById('dimension-info'),
 exactDimensions: document.getElementById('exact-dimensions'),
 apiKeyInput: document.getElementById('api-key-input'),
+projectIdInput: document.getElementById('project-id-input'),
 toastContainer: document.getElementById('toast-container'),
 cardPreviewCanvas: document.getElementById('card-preview-canvas'),
 cardPreviewPlaceholder: document.getElementById('card-preview-placeholder'),
@@ -555,8 +560,10 @@ elements.stylePrompt.value = DEFAULT_STYLE_PROMPT;
 setPreviewLayout(elements.cardLayoutSelect.value);
 setupCropGuideInteraction();
 updateCardPreview();
-const savedApiKey = localStorage.getItem('geminiApiKey');
+const savedApiKey = localStorage.getItem('vertexApiKey');
 if (savedApiKey) elements.apiKeyInput.value = savedApiKey;
+const savedProjectId = localStorage.getItem('vertexProjectId');
+if (savedProjectId) elements.projectIdInput.value = savedProjectId;
 }
 function setPreviewLayout(layout) {
 const layoutConfig = CARD_LAYOUTS[layout];
@@ -621,11 +628,21 @@ for (const id of sortedIds) {
 
 async function handleArtGeneration() {
 const apiKey = elements.apiKeyInput.value;
+const projectId = elements.projectIdInput.value;
+
+// Validate required credentials for Vertex AI
 if (!apiKey) {
-showToast("Please enter your Gemini API key.", "error");
+showToast("Please enter your Google Cloud API key.", "error");
 return;
 }
-localStorage.setItem('geminiApiKey', apiKey);
+if (!projectId) {
+showToast("Please enter your Google Cloud Project ID. This is required for Vertex AI API calls.", "error");
+return;
+}
+
+// Save credentials to localStorage
+localStorage.setItem('vertexApiKey', apiKey);
+localStorage.setItem('vertexProjectId', projectId);
 
 // Validation for new Doodlemon
 if (elements.doodledexSelect.value === 'ADD_NEW') {
@@ -672,47 +689,55 @@ elements.cropInfo.classList.add('hidden');
 generatedImageUrl = null;
 
 try {
-// UPDATED PAYLOAD for Imagen 4 Model
+// UPDATED: Using Vertex AI endpoint with Imagen 4 Ultra model
+// Full model name: imagen-4.0-ultra-generate-preview-06-06
+// Endpoint format: v1 Vertex AI (not v1beta)
+const vertexApiUrl = `https://us-central1-aiplatform.googleapis.com/v1/projects/${projectId}/locations/us-central1/publishers/google/models/imagen-4.0-ultra-generate-preview-06-06:predict`;
+
+// UPDATED: Payload structure for Vertex AI Imagen 4 Ultra
+// Must include aspectRatio parameter set to "16:9" and sampleCount set to 1
 const payload = {
-instances: [{ prompt: finalPrompt }],
-parameters: { "sampleCount": 1 }
+instances: [{ 
+prompt: finalPrompt 
+}],
+parameters: { 
+aspectRatio: "16:9",
+sampleCount: 1
+}
 };
 
-// Try Imagen 4 Ultra first, fallback to Imagen 4 if unavailable
-let apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4-ultra:predict?key=${apiKey}`;
-let modelUsed = 'Imagen 4 Ultra';
-
-let response = await fetch(apiUrl, {
+const response = await fetch(vertexApiUrl, {
 method: 'POST',
-headers: { 'Content-Type': 'application/json' },
+headers: { 
+'Content-Type': 'application/json',
+'Authorization': `Bearer ${apiKey}`
+},
 body: JSON.stringify(payload)
 });
-
-// If Imagen 4 Ultra fails, try Imagen 4
-if (!response.ok) {
-const ultraError = await response.json();
-console.log('Imagen 4 Ultra not available, trying Imagen 4:', ultraError.error?.message);
-showToast("Imagen 4 Ultra not available, falling back to Imagen 4...", "info");
-
-apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4:predict?key=${apiKey}`;
-modelUsed = 'Imagen 4';
-
-response = await fetch(apiUrl, {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify(payload)
-});
-}
 
 if (!response.ok) {
 const errorData = await response.json();
-throw new Error(`API error with ${modelUsed}! Status: ${response.status}. Message: ${errorData.error?.message || 'Unknown error'}`);
+throw new Error(`Vertex AI API error! Status: ${response.status}. Message: ${errorData.error?.message || 'Unknown error'}`);
 }
 
 const result = await response.json();
-// CORRECTED RESPONSE HANDLING for Imagen Model
-if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
-generatedImageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+// UPDATED: Response handling for Vertex AI Imagen 4 Ultra model
+// The response structure may be different from the old Gemini API
+if (result.predictions && result.predictions.length > 0) {
+// Handle both possible response formats
+const prediction = result.predictions[0];
+let imageData = null;
+
+if (prediction.bytesBase64Encoded) {
+// Format 1: Direct base64 encoded bytes
+imageData = prediction.bytesBase64Encoded;
+} else if (prediction.generatedImage && prediction.generatedImage.bytesBase64Encoded) {
+// Format 2: Nested in generatedImage object
+imageData = prediction.generatedImage.bytesBase64Encoded;
+}
+
+if (imageData) {
+generatedImageUrl = `data:image/png;base64,${imageData}`;
 elements.artPreviewImg.src = generatedImageUrl;
 elements.artPreviewImg.classList.remove('hidden');
 elements.downloadOriginalBtn.classList.remove('hidden');
@@ -721,9 +746,12 @@ elements.downloadHelp.classList.remove('hidden');
 elements.cropInfo.classList.remove('hidden');
 currentImageElement = elements.artPreviewImg;
 updateCardPreview();
-showToast(`Art generation successful using ${modelUsed}!`, "success");
+showToast(`Art generation successful using Imagen 4 Ultra (16:9)!`, "success");
 } else {
-throw new Error("Invalid response structure from API. No image data found.");
+throw new Error("No image data found in response. Check API response format.");
+}
+} else {
+throw new Error("Invalid response structure from Vertex AI. No predictions found.");
 }
 } catch (error) {
 showToast(`Art generation failed: ${error.message}`, "error");
