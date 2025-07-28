@@ -115,7 +115,24 @@ const rawGenesisSet = {
         { id: 'GS-CH4', name: 'Kaleidocat', doodledexNum: 86, rarity: 'Chase', img: `${ASSET_PATH}GS-CH4.png`, lore: 'Its fur displays an ever-changing pattern of colors that mesmerizes all who gaze upon it.' },
         
         // Insert Art Test Card
-        { id: 'GS-IA1', name: 'Holographic Geobble', doodledexNum: 1, rarity: 'Insert Art', img: `${ASSET_PATH}001-geobble.png`, isInsertArt: true, lore: 'A special holographic variant with rainbow energy flowing through its rocky exterior.' }
+        { id: 'GS-IA1', name: 'Holographic Geobble', doodledexNum: 1, rarity: 'Insert Art', img: `${ASSET_PATH}001-geobble.png`, isInsertArt: true, lore: 'A special holographic variant with rainbow energy flowing through its rocky exterior.' },
+        
+        // Additional Doodlemon entries
+        { id: 'GS051', name: 'Gumdrop', doodledexNum: 88, rarity: 'Common', lore: 'A sweet and bouncy creature that secretes colorful candy coating for protection.' },
+        { id: 'GS052', name: 'Gumbrawl', doodledexNum: 89, rarity: 'Uncommon', lore: 'Its sticky exterior can trap opponents while delivering powerful stretchy punches.' },
+        { id: 'GS053', name: 'Jawbreaker', doodledexNum: 90, rarity: 'Holo Rare', lore: 'Its incredibly hard shell can withstand tremendous impacts and pressures.' },
+        { id: 'GS054', name: 'Nimbulb', doodledexNum: 91, rarity: 'Common', lore: 'This floating bulb generates small clouds that rain refreshing droplets below.' },
+        { id: 'GS055', name: 'Cumulonimbus', doodledexNum: 92, rarity: 'Holo Rare', lore: 'Commands massive storm systems and can summon lightning at will.' },
+        { id: 'GS056', name: 'Patchling', doodledexNum: 93, rarity: 'Common', lore: 'Made from discarded fabric scraps, it stitches itself back together when damaged.' },
+        { id: 'GS057', name: 'Haydread', doodledexNum: 94, rarity: 'Uncommon', lore: 'This haunted scarecrow feeds on the fears of those who wander too close.' },
+        { id: 'GS058', name: 'Fearcrow', doodledexNum: 95, rarity: 'Holo Rare', lore: 'Its piercing gaze can paralyze enemies with overwhelming terror and dread.' },
+        { id: 'GS059', name: 'Slugger', doodledexNum: 96, rarity: 'Common', lore: 'This slow-moving mollusk packs a surprisingly powerful punch in its shell.' },
+        { id: 'GS060', name: 'Escargot', doodledexNum: 97, rarity: 'Uncommon', lore: 'A refined gastropod that moves with elegance despite its leisurely pace.' },
+        { id: 'GS061', name: 'Snailstrom', doodledexNum: 98, rarity: 'Holo Rare', lore: 'Creates whirlpools of slime that can transport allies across great distances.' },
+        { id: 'GS062', name: 'Radot', doodledexNum: 103, rarity: 'Common', lore: 'This small robotic creature emits helpful scanning beams to analyze surroundings.' },
+        { id: 'GS063', name: 'Vortexar', doodledexNum: 104, rarity: 'Uncommon', lore: 'Spins at incredible speeds to create powerful whirlwinds and tornadoes.' },
+        { id: 'GS064', name: 'Dopplereign', doodledexNum: 105, rarity: 'Holo Rare', lore: 'Can create perfect duplicates of itself to confuse and overwhelm opponents.' },
+        { id: 'GS065', name: 'Aervane', doodledexNum: 106, rarity: 'Uncommon', lore: 'Its weathervane tail always points toward incoming storms and changes in weather.' }
     ]
 };
 
