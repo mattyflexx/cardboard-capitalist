@@ -520,10 +520,17 @@ function openLoupeView(cardId, instanceUid) {
     cardElement.querySelector('.card-inspect-overlay')?.remove();
     DOM.loupeCardContainer.appendChild(cardElement);
     DOM.loupeModal.classList.remove('hidden');
+    
+    // Disable pointer events if tutorial is active
+    if (tutorialActive) {
+        DOM.loupeModal.style.pointerEvents = 'none';
+    }
 }
 
 function closeLoupeView() {
     DOM.loupeModal.classList.add('hidden');
+    // Re-enable pointer events
+    DOM.loupeModal.style.pointerEvents = '';
 }
 
 function buyPack(setName) {
@@ -926,7 +933,8 @@ function showTutorialStep() {
     
     const overlay = document.createElement('div');
     overlay.id = 'tutorial-overlay';
-    overlay.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
+    overlay.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center';
+    overlay.style.zIndex = '1100';
     
     const modal = document.createElement('div');
     modal.className = 'bg-gray-800 p-6 rounded-lg max-w-md mx-4 relative';
