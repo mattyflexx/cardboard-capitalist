@@ -374,3 +374,212 @@ body {
   max-width: fit-content;
   margin: 0 auto;
 }
+
+/* --- PACK OPENING ANIMATIONS --- */
+
+/* Pack opening container */
+.pack-opening-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Pack glow effect */
+.pack-glow {
+  animation: pack-pulse 2s ease-in-out infinite;
+}
+
+@keyframes pack-pulse {
+  0%, 100% { 
+    opacity: 0.2;
+    transform: scale(1); 
+  }
+  50% { 
+    opacity: 0.4;
+    transform: scale(1.1); 
+  }
+}
+
+/* Pack ripping animation */
+.ripping-animation {
+  animation: pack-rip 2s ease-out;
+}
+
+@keyframes pack-rip {
+  0% { 
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  25% { 
+    transform: scale(1.05) rotate(-2deg);
+    opacity: 0.9;
+  }
+  50% { 
+    transform: scale(1.1) rotate(1deg);
+    opacity: 0.7;
+  }
+  75% { 
+    transform: scale(1.15) rotate(-1deg);
+    opacity: 0.5;
+  }
+  100% { 
+    transform: scale(1.2) rotate(0deg);
+    opacity: 0.3;
+  }
+}
+
+/* Rip effects */
+.rip-effects {
+  animation: rip-flash 0.5s ease-out infinite;
+}
+
+@keyframes rip-flash {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+/* Card flip animation */
+.card-flip-animation {
+  perspective: 1000px;
+  animation: card-reveal 1.5s ease-out;
+}
+
+.card-flip-animation .card-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+  transition: transform 0.8s;
+}
+
+.card-back-face {
+  transform: rotateY(0deg);
+}
+
+.card-front-face {
+  transform: rotateY(180deg);
+}
+
+.card-flip-animation.flipped .card-back-face {
+  transform: rotateY(-180deg);
+}
+
+.card-flip-animation.flipped .card-front-face {
+  transform: rotateY(0deg);
+}
+
+@keyframes card-reveal {
+  0% { 
+    transform: translateY(-50px) scale(0.8);
+    opacity: 0;
+  }
+  50% { 
+    transform: translateY(0) scale(1.1);
+    opacity: 1;
+  }
+  100% { 
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Card stack hover effects */
+.card-stack:hover {
+  transform: scale(1.05);
+  filter: brightness(1.1);
+}
+
+/* Cards remaining badge */
+.cards-remaining-badge {
+  animation: badge-bounce 1s ease-in-out infinite;
+}
+
+@keyframes badge-bounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+/* Pack results fan display */
+.cards-fan-display .pack-card-result {
+  transition: all 0.3s ease;
+}
+
+.cards-fan-display .pack-card-result:hover {
+  transform: translateY(-10px) scale(1.1);
+  z-index: 10;
+  filter: brightness(1.2);
+}
+
+.cards-fan-display .pack-card-result:hover .card-info-popup {
+  display: block;
+}
+
+/* Rarity effect animations */
+@keyframes tier1-shimmer {
+  0% { 
+    box-shadow: 0 0 20px rgba(128, 0, 255, 0.5);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 0 40px rgba(128, 0, 255, 0.8);
+    transform: scale(1.05);
+  }
+  100% { 
+    box-shadow: 0 0 20px rgba(128, 0, 255, 0.5);
+    transform: scale(1);
+  }
+}
+
+@keyframes tier2-explosion {
+  0% { 
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+    transform: scale(1);
+  }
+  25% { 
+    box-shadow: 0 0 60px rgba(255, 215, 0, 1);
+    transform: scale(1.1);
+  }
+  50% { 
+    box-shadow: 0 0 100px rgba(255, 0, 0, 0.8);
+    transform: scale(1.15);
+  }
+  75% { 
+    box-shadow: 0 0 80px rgba(255, 215, 0, 0.9);
+    transform: scale(1.05);
+  }
+  100% { 
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+    transform: scale(1);
+  }
+}
+
+/* Apply rarity effects */
+.holo-rare-effect {
+  animation: tier1-shimmer 2s ease-in-out;
+}
+
+.chase-rare-effect {
+  animation: tier2-explosion 3s ease-in-out;
+}
+
+/* Responsive adjustments for pack opening */
+@media (max-width: 768px) {
+  .pack-opening-container {
+    padding: 4rem 1rem;
+  }
+  
+  .pack-image {
+    width: 128px !important;
+    height: 192px !important;
+  }
+  
+  .cards-fan-display {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
