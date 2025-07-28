@@ -516,7 +516,7 @@ function renderPackStage3(container, set, state) {
   if (!currentCard) {
     // All cards revealed, move to summary
     state.stage = 'summary';
-    renderPackStage4(container, set, state);
+    renderPackStage4(container, set, state, setName);
     return;
   }
 
@@ -636,7 +636,7 @@ function revealNextCard(container, set, state, card) {
 }
 
 // Stage 4: Final Summary View - Display all cards, continue button
-function renderPackStage4(container, set, state) {
+function renderPackStage4(container, set, state, setName) {
   container.innerHTML = `
     <div class="pack-summary-scene text-center">
       <h2 class="text-3xl font-bold text-white mb-8">Pack Opening Complete!</h2>
