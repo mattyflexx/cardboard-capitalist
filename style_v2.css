@@ -79,8 +79,14 @@ body {
 .card-name-box {
     font-family: 'The Bold Font', sans-serif;
     text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
-    /* Responsive font size with min/max limits */
-    font-size: clamp(8px, 2.5vw, 14px);
+    /* More conservative responsive font size with proper containment */
+    font-size: clamp(6px, 2vw, 12px);
+    /* Add padding to prevent text from touching ribbon edges */
+    padding: 2px 4px;
+    /* Ensure text stays within bounds */
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
 }
 .card-lore-box {
     font-family: 'Inter', sans-serif;
@@ -93,19 +99,34 @@ body {
 }
 /* Specific style for the full-art nameplate */
 .full-art-name-box {
-    font-size: clamp(10px, 2.8vw, 18px);
+    font-size: clamp(8px, 2.2vw, 15px);
+    /* Add padding for full-art cards as well */
+    padding: 2px 6px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
 }
 
 
 /* --- CONTEXT-AWARE SIZING (FOR LOUPE MODAL) --- */
 #loupe-view-modal .card-name-box {
-    font-size: 36px;
+    font-size: 28px;
+    /* Ensure text containment in loupe view */
+    padding: 4px 8px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
 }
 #loupe-view-modal .card-lore-box {
     font-size: 17px;
 }
 #loupe-view-modal .full-art-name-box {
-    font-size: 38px;
+    font-size: 30px;
+    /* Consistent text handling for full-art in loupe view */
+    padding: 4px 10px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
 }
 
 
@@ -272,7 +293,7 @@ body {
 
 .card-insert-art .card-doodlemon-name {
   font-family: 'The Bold Font', sans-serif;
-  font-size: clamp(8px, 3vw, 20px);
+  font-size: clamp(6px, 2.5vw, 16px);
   color: #333;
   text-align: center;
   margin-bottom: 2%;
@@ -282,6 +303,8 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  /* Add padding to prevent text from touching edges */
+  padding: 0 4px;
 }
 
 .card-insert-art .card-doodlemon-logo {
@@ -322,7 +345,9 @@ body {
 
 /* Loupe view styles for insert art cards */
 #loupe-view-modal .card-insert-art .card-doodlemon-name {
-  font-size: 32px;
+  font-size: 26px;
+  /* Consistent padding for loupe view */
+  padding: 0 8px;
 }
 
 /* Accessibility improvements */
