@@ -309,6 +309,55 @@ function renderDoodleDexView(container) {
 }
 
 
+function renderPackOpeningView(container, setName) {
+  const set = TCG_SETS[setName];
+  if (!set) return;
+  
+  const packsAvailable = gameState.player.sealedInventory[setName] || 0;
+  
+  const packOpeningDiv = document.createElement('div');
+  packOpeningDiv.className = 'flex flex-col items-center space-y-6 p-6';
+  
+  if (packsAvailable > 0) {
+    packOpeningDiv.innerHTML = `
+      <div class="text-center">
+        <h3 class="text-2xl font-bold text-white mb-4">${set.name} Booster Pack</h3>
+        <p class="text-gray-300 mb-6">You have ${packsAvailable} pack${packsAvailable > 1 ? 's' : ''} to open!</p>
+      </div>
+      <div class="bg-gray-800 p-8 rounded-lg text-center">
+        <img src="${set.pack.img}" alt="${set.name} Pack" class="w-32 h-48 mx-auto mb-6 object-contain" onerror="this.style.display='none'">
+        <button id="open-pack-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg" data-set="${setName}">
+          Open Pack!
+        </button>
+      </div>
+      <div class="text-center">
+        <p class="text-gray-400 text-sm">Click the button above to open your pack and reveal your cards!</p>
+      </div>
+    `;
+  } else {
+    packOpeningDiv.innerHTML = `
+      <div class="text-center">
+        <h3 class="text-2xl font-bold text-white mb-4">No Packs Available</h3>
+        <p class="text-gray-300 mb-6">You don't have any ${set.name} packs to open.</p>
+        <button class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded" onclick="renderMainView('store')">
+          Go to Store
+        </button>
+      </div>
+    `;
+  }
+  
+  container.appendChild(packOpeningDiv);
+  
+  // Add event listener for opening packs
+  const openPackBtn = document.getElementById('open-pack-btn');
+  if (openPackBtn) {
+    openPackBtn.addEventListener('click', () => {
+      openPack(setName);
+      renderMainView('collection'); // Return to collection after opening
+    });
+  }
+}
+
 function renderCardManagementView(container, cardId, instanceUid) {
   const cardData = gameState.player.collection[cardId];
   if (!cardData) return;
@@ -504,6 +553,164 @@ function buildCardElement(cardInfo, instance) {
     cardElement.appendChild(inspectOverlay);
     
     return cardElement;
+}
+
+function renderAchievementsView(container) {
+  const achievementsDiv = document.createElement('div');
+  achievementsDiv.className = 'space-y-4';
+  
+  const achievementsList = Object.values(ACHIEVEMENTS);
+  const unlockedCount = achievementsList.filter(a => a.unlocked).length;
+  
+  achievementsDiv.innerHTML = `
+    <div class="bg-gray-800 p-4 rounded-lg mb-6">
+      <h3 class="text-lg font-bold text-white mb-2">Progress</h3>
+      <p class="text-gray-300">Unlocked: ${unlockedCount} / ${achievementsList.length}</p>
+      <div class="w-full bg-gray-700 rounded-full h-2 mt-2">
+        <div class="bg-blue-600 h-2 rounded-full" style="width: ${(unlockedCount / achievementsList.length) * 100}%"></div>
+      </div>
+    </div>
+  `;
+  
+  const grid = document.createElement('div');
+  grid.className = 'grid grid-cols-1 md:grid-cols-2 gap-4';
+  
+  achievementsList.forEach(achievement => {
+    const achievementCard = document.createElement('div');
+    achievementCard.className = `bg-gray-800 p-4 rounded-lg border-l-4 ${achievement.unlocked ? 'border-green-500' : 'border-gray-600'}`;
+    
+    achievementCard.innerHTML = `
+      <div class="flex items-start gap-3">
+        <div class="text-2xl">${achievement.unlocked ? '🏆' : '🔒'}</div>
+        <div class="flex-1">
+          <h4 class="font-bold text-white mb-1">${achievement.name}</h4>
+          <p class="text-gray-300 text-sm mb-2">${achievement.description}</p>
+          ${achievement.reward?.cash ? `<p class="text-green-400 text-xs">Reward: $${achievement.reward.cash}</p>` : ''}
+          ${achievement.unlocked ? '<p class="text-green-500 text-xs font-bold">UNLOCKED</p>' : '<p class="text-gray-500 text-xs">Locked</p>'}
+        </div>
+      </div>
+    `;
+    
+    grid.appendChild(achievementCard);
+  });
+  
+  achievementsDiv.appendChild(grid);
+  container.appendChild(achievementsDiv);
+}
+
+function renderStatsView(container) {
+  const statsDiv = document.createElement('div');
+  statsDiv.className = 'space-y-6';
+  
+  const stats = gameState.stats || {};
+  
+  statsDiv.innerHTML = `
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="bg-gray-800 p-4 rounded-lg text-center">
+        <p class="text-gray-400 text-sm mb-1">Packs Opened</p>
+        <p class="text-2xl font-bold text-white">${stats.packsOpened || 0}</p>
+      </div>
+      <div class="bg-gray-800 p-4 rounded-lg text-center">
+        <p class="text-gray-400 text-sm mb-1">Cards Acquired</p>
+        <p class="text-2xl font-bold text-white">${stats.cardsAcquired || 0}</p>
+      </div>
+      <div class="bg-gray-800 p-4 rounded-lg text-center">
+        <p class="text-gray-400 text-sm mb-1">Cards Sold</p>
+        <p class="text-2xl font-bold text-white">${stats.cardsSold || 0}</p>
+      </div>
+      <div class="bg-gray-800 p-4 rounded-lg text-center">
+        <p class="text-gray-400 text-sm mb-1">Total Earned</p>
+        <p class="text-2xl font-bold text-green-400">$${(stats.totalEarned || 0).toFixed(2)}</p>
+      </div>
+      <div class="bg-gray-800 p-4 rounded-lg text-center">
+        <p class="text-gray-400 text-sm mb-1">Total Spent</p>
+        <p class="text-2xl font-bold text-red-400">$${(stats.totalSpent || 0).toFixed(2)}</p>
+      </div>
+      <div class="bg-gray-800 p-4 rounded-lg text-center">
+        <p class="text-gray-400 text-sm mb-1">Days Played</p>
+        <p class="text-2xl font-bold text-white">${stats.daysPlayed || 0}</p>
+      </div>
+    </div>
+    <div class="bg-gray-800 p-4 rounded-lg">
+      <h3 class="text-lg font-bold text-white mb-2">Highest Value Card</h3>
+      <p class="text-gray-300">${stats.highestValueCard?.name || 'None'}</p>
+      ${stats.highestValueCard?.value ? `<p class="text-green-400">$${stats.highestValueCard.value.toFixed(2)}</p>` : ''}
+    </div>
+    <div class="bg-gray-800 p-4 rounded-lg">
+      <h3 class="text-lg font-bold text-white mb-2">Achievements</h3>
+      <p class="text-gray-300">Unlocked: ${stats.achievementsUnlocked || 0}</p>
+    </div>
+  `;
+  
+  container.appendChild(statsDiv);
+}
+
+function renderSettingsView(container) {
+  const settingsDiv = document.createElement('div');
+  settingsDiv.className = 'space-y-6';
+  
+  const settings = gameState.settings || {};
+  
+  settingsDiv.innerHTML = `
+    <div class="bg-gray-800 p-6 rounded-lg">
+      <h3 class="text-lg font-bold text-white mb-4">Game Settings</h3>
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <label class="text-gray-300">Auto-save</label>
+          <input type="checkbox" id="auto-save-toggle" ${settings.autoSave ? 'checked' : ''} class="rounded">
+        </div>
+        <div class="flex items-center justify-between">
+          <label class="text-gray-300">Tutorial Completed</label>
+          <span class="text-gray-400">${settings.tutorialCompleted ? 'Yes' : 'No'}</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="bg-gray-800 p-6 rounded-lg">
+      <h3 class="text-lg font-bold text-white mb-4">Save Management</h3>
+      <div class="space-y-2">
+        <button id="save-game-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+          Save Game
+        </button>
+        <button id="reset-game-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+          Reset Game
+        </button>
+      </div>
+      <p class="text-gray-400 text-xs mt-2">Warning: Reset will delete all progress permanently!</p>
+    </div>
+    
+    <div class="bg-gray-800 p-6 rounded-lg">
+      <h3 class="text-lg font-bold text-white mb-4">Controls</h3>
+      <div class="text-sm text-gray-300 space-y-1">
+        <p><kbd class="bg-gray-700 px-2 py-1 rounded">1</kbd> - Collection</p>
+        <p><kbd class="bg-gray-700 px-2 py-1 rounded">2</kbd> - Store</p>
+        <p><kbd class="bg-gray-700 px-2 py-1 rounded">3</kbd> - DoodleDex</p>
+        <p><kbd class="bg-gray-700 px-2 py-1 rounded">Ctrl+S</kbd> - Save Game</p>
+        <p><kbd class="bg-gray-700 px-2 py-1 rounded">Ctrl+Click</kbd> - Card Management</p>
+        <p><kbd class="bg-gray-700 px-2 py-1 rounded">Right Click</kbd> - Card Management</p>
+      </div>
+    </div>
+  `;
+  
+  container.appendChild(settingsDiv);
+  
+  // Add event listeners
+  document.getElementById('auto-save-toggle')?.addEventListener('change', (e) => {
+    if (!gameState.settings) gameState.settings = {};
+    gameState.settings.autoSave = e.target.checked;
+    if (e.target.checked) saveGame();
+  });
+  
+  document.getElementById('save-game-btn')?.addEventListener('click', () => {
+    saveGame();
+  });
+  
+  document.getElementById('reset-game-btn')?.addEventListener('click', () => {
+    if (confirm('Are you sure you want to reset all progress? This cannot be undone!')) {
+      localStorage.removeItem('cardboardCapitalistSave');
+      location.reload();
+    }
+  });
 }
 
 function openLoupeView(cardId, instanceUid) {
@@ -771,6 +978,20 @@ function checkHighestValueCard() {
     });
   });
   if (highestValue > gameState.stats.highestValueCard.value) updateStats('highestValueCard', highestCard);
+}
+
+function checkAchievements() {
+  let newAchievements = [];
+  Object.values(ACHIEVEMENTS).forEach(achievement => {
+    if (!achievement.unlocked && achievement.requirement(gameState)) {
+      achievement.unlocked = true;
+      newAchievements.push(achievement);
+      if (achievement.reward?.cash) gameState.player.cash += achievement.reward.cash;
+      if (achievement.reward?.supplies) Object.entries(achievement.reward.supplies).forEach(([item, amount]) => gameState.player.supplies[item] += amount);
+      updateStats('achievementsUnlocked', 1);
+    }
+  });
+  return newAchievements;
 }
 
 function saveGame() {
