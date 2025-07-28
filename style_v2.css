@@ -202,17 +202,31 @@ body {
   height: 100%;
   background: linear-gradient(45deg, 
     transparent 25%, 
-    rgba(255, 255, 255, 0.1) 25%, 
-    rgba(255, 255, 255, 0.1) 50%, 
+    rgba(255, 255, 255, 0.08) 25%, 
+    rgba(255, 255, 255, 0.08) 50%, 
     transparent 50%, 
     transparent 75%, 
-    rgba(255, 255, 255, 0.1) 75%
+    rgba(255, 255, 255, 0.08) 75%
   );
   background-size: 20px 20px;
   animation: holo-shimmer 2s linear infinite;
   z-index: 10;
   pointer-events: none;
   border-radius: 4%;
+}
+
+/* Full card holo effect for standard Holo Rare cards */
+.card-holo-overlay.full-card {
+  border-radius: 0;
+  /* Slightly more subtle opacity for full card coverage */
+  background: linear-gradient(45deg, 
+    transparent 25%, 
+    rgba(255, 255, 255, 0.06) 25%, 
+    rgba(255, 255, 255, 0.06) 50%, 
+    transparent 50%, 
+    transparent 75%, 
+    rgba(255, 255, 255, 0.06) 75%
+  );
 }
 
 @keyframes holo-shimmer {

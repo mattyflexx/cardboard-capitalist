@@ -495,7 +495,7 @@ function buildCardElement(cardInfo, instance) {
     // Add holo effect for Holo Rare cards
     if (cardInfo.rarity === 'Holo Rare') {
         const holoOverlay = document.createElement('div');
-        holoOverlay.className = 'card-holo-overlay';
+        holoOverlay.className = 'card-holo-overlay full-card';
         cardElement.appendChild(holoOverlay);
     }
 
