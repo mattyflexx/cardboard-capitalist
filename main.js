@@ -570,7 +570,7 @@ function buildCardElement(cardInfo, instance) {
     // Add holo effect for Holo Rare cards
     if (cardInfo.rarity === 'Holo Rare') {
         const holoOverlay = document.createElement('div');
-        holoOverlay.className = 'card-holo-overlay';
+        holoOverlay.className = 'card-holo-overlay full-card';
         cardElement.appendChild(holoOverlay);
     }
 
@@ -1074,13 +1074,13 @@ function setupEventListeners() {
         const overlay = e.target.closest('.card-inspect-overlay');
         if (overlay) {
             const cardContainer = overlay.closest('.card-container');
-            if (tutorialActive) openLoupeView(cardContainer.dataset.cardId, cardContainer.dataset.instanceUid);
-            else {
+            if (!tutorialActive) {
                 if (e.ctrlKey || e.button === 2) {
                     gameState.ui.selectedCard = { cardId: cardContainer.dataset.cardId, instanceUid: cardContainer.dataset.instanceUid };
                     renderMainView('card-management');
                 } else openLoupeView(cardContainer.dataset.cardId, cardContainer.dataset.instanceUid);
             }
+            // If tutorial is active, prevent loupe view from opening
         }
         
         const buyPackBtn = e.target.closest('.buy-pack-btn');
@@ -1173,6 +1173,10 @@ function startTutorial() {
     if (gameState.settings?.tutorialCompleted) return;
     tutorialActive = true;
     currentTutorialStep = 0;
+    
+    // Disable pointer events on loupe modal when tutorial is active
+    DOM.loupeModal.style.pointerEvents = 'none';
+    
     showTutorialStep();
 }
 
@@ -1187,7 +1191,7 @@ function showTutorialStep() {
     
     const overlay = document.createElement('div');
     overlay.id = 'tutorial-overlay';
-    overlay.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
+    overlay.className = 'fixed inset-0 bg-black bg-opacity-50 z-[1100] flex items-center justify-center';
     
     const modal = document.createElement('div');
     modal.className = 'bg-gray-800 p-6 rounded-lg max-w-md mx-4 relative';
@@ -1240,6 +1244,10 @@ function endTutorial() {
     document.querySelectorAll('.tutorial-highlight').forEach(el => el.classList.remove('tutorial-highlight'));
     if (!gameState.settings) gameState.settings = {};
     gameState.settings.tutorialCompleted = true;
+    
+    // Restore pointer events on loupe modal when tutorial ends
+    DOM.loupeModal.style.pointerEvents = '';
+    
     logMessage("Tutorial completed! You're ready to start your journey.", "success");
     renderMainView('collection');
 }
