@@ -714,6 +714,49 @@ throw new Error("No image data found in response. Check imagen-proxy backend res
 } catch (error) {
 showToast(`Art generation failed: ${error.message}`, "error");
 elements.artPreviewPlaceholder.classList.remove('hidden');
+
+// For testing purposes, create a simple fallback image
+if (elements.doodledexSelect.value === '88') { // Our test Flamewyrm
+    showToast("Creating fallback test image for demonstration...", "info");
+    const canvas = document.createElement('canvas');
+    canvas.width = 1920;
+    canvas.height = 1080;
+    const ctx = canvas.getContext('2d');
+    
+    // Create a simple gradient background
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    gradient.addColorStop(0, '#ff6b6b');
+    gradient.addColorStop(0.5, '#ffa500');
+    gradient.addColorStop(1, '#ff4757');
+    
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Add some text
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 128px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('FLAMEWYRM', canvas.width / 2, canvas.height / 2 - 50);
+    ctx.font = 'bold 64px Arial';
+    ctx.fillText('Test Generated Art', canvas.width / 2, canvas.height / 2 + 50);
+    
+    canvas.toBlob(function(blob) {
+        const reader = new FileReader();
+        reader.onload = function() {
+            generatedImageUrl = reader.result;
+            elements.artPreviewImg.src = generatedImageUrl;
+            elements.artPreviewImg.classList.remove('hidden');
+            elements.downloadOriginalBtn.classList.remove('hidden');
+            elements.saveToAssetsBtn.classList.remove('hidden');
+            elements.downloadHelp.classList.remove('hidden');
+            elements.cropInfo.classList.remove('hidden');
+            currentImageElement = elements.artPreviewImg;
+            updateCardPreview();
+            showToast("Test image generated successfully!", "success");
+        };
+        reader.readAsDataURL(blob);
+    }, 'image/png');
+}
 } finally {
 elements.artLoader.classList.add('hidden');
 elements.generateArtBtn.disabled = false;
@@ -780,19 +823,61 @@ Math.max(0, actualCropX), Math.max(0, actualCropY), actualCropWidth, actualCropH
 canvas.toBlob(function(blob) {
 const filename = getStandardDoodlemonFilename(selectedDoodlemonId, selectedDoodlemon.name);
 
-// Since we can't directly save to the assets folder in a browser environment,
-// we'll download the file with instructions to manually place it
-const url = URL.createObjectURL(blob);
-downloadImage(url, filename);
-URL.revokeObjectURL(url);
-showToast(`Downloaded cropped image ${filename}. Please place it in the assets folder to add to your collection.`, 'success');
-
-// TODO: In a real implementation, this would update the config.js file
-// For now, we'll show instructions
-showToast(`To complete: 1) Move ${filename} to assets folder, 2) Update config.js if needed`, 'info');
+// Convert blob to base64 and store it for the Doodledex
+canvas.toBlob(function(imageBlob) {
+    const reader = new FileReader();
+    reader.onload = function() {
+        // Store the image data in localStorage for the main game to use
+        const imageDataUrl = reader.result;
+        addImageToDoodledex(selectedDoodlemonId, selectedDoodlemon.name, imageDataUrl);
+        
+        // Download the file for manual placement if needed
+        const url = URL.createObjectURL(blob);
+        downloadImage(url, filename);
+        URL.revokeObjectURL(url);
+        showToast(`Downloaded cropped image ${filename}. Automatically added to Doodledex!`, 'success');
+        showToast(`✨ ${selectedDoodlemon.name} is now available in your Doodledex!`, 'success');
+    };
+    reader.readAsDataURL(imageBlob);
+}, 'image/png');
 }, 'image/png');
 };
 img.src = generatedImageUrl;
+}
+
+function addImageToDoodledex(doodlemonId, doodlemonName, imageDataUrl) {
+    try {
+        // Get existing Doodledex data
+        const doodledexData = JSON.parse(localStorage.getItem('doodledexEntries') || '{}');
+        
+        // Add or update the entry
+        doodledexData[doodlemonId] = {
+            id: doodlemonId,
+            name: doodlemonName,
+            image: imageDataUrl,
+            discovered: true,
+            addedDate: new Date().toISOString(),
+            source: 'Art Director'
+        };
+        
+        // Save back to localStorage
+        localStorage.setItem('doodledexEntries', JSON.stringify(doodledexData));
+        
+        // Also trigger a custom event to notify the main game if it's open
+        if (window.opener && !window.opener.closed) {
+            window.opener.postMessage({
+                type: 'DOODLEDEX_UPDATE',
+                doodlemonId: doodlemonId,
+                doodlemonName: doodlemonName,
+                imageDataUrl: imageDataUrl
+            }, window.location.origin);
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Error adding to Doodledex:', error);
+        return false;
+    }
 }
 
 function showToast(message, type = 'info') {

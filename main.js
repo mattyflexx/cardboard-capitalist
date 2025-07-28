@@ -267,15 +267,31 @@ function renderStoreView(container) {
     container.appendChild(storeDiv);
 }
 
+function getDoodledexEntries() {
+    try {
+        return JSON.parse(localStorage.getItem('doodledexEntries') || '{}');
+    } catch (error) {
+        console.error('Error loading Doodledex entries:', error);
+        return {};
+    }
+}
+
 function renderDoodleDexView(container) {
     const dexDiv = document.createElement('div');
     dexDiv.className = 'space-y-4';
     
     const ownedDoodlemon = new Set();
     const allDoodlemon = getAllDoodlemonForGame();
-
+    
+    // Add Doodlemon from collection
     Object.values(gameState.player.collection).forEach(cardData => {
         ownedDoodlemon.add(cardData.cardInfo.doodledexNum);
+    });
+    
+    // Add Doodlemon discovered through Art Director
+    const doodledexEntries = getDoodledexEntries();
+    Object.keys(doodledexEntries).forEach(id => {
+        ownedDoodlemon.add(parseInt(id));
     });
     
     const grid = document.createElement('div');
@@ -284,10 +300,19 @@ function renderDoodleDexView(container) {
     Object.keys(allDoodlemon).sort((a,b) => a - b).forEach(doodledexNum => {
         const dexEntry = document.createElement('div');
         const isCustom = allDoodlemon[doodledexNum].isCustom;
-        dexEntry.className = `bg-gray-800 p-4 rounded-lg text-center ${isCustom ? 'border-2 border-purple-500' : ''}`;
-        
         const isOwned = ownedDoodlemon.has(parseInt(doodledexNum));
-        const artUrl = allDoodlemon[doodledexNum].img;
+        const doodledexEntry = doodledexEntries[doodledexNum];
+        
+        // Determine if this is an Art Director entry
+        const isArtDirectorEntry = doodledexEntry && doodledexEntry.source === 'Art Director';
+        
+        dexEntry.className = `bg-gray-800 p-4 rounded-lg text-center ${isCustom ? 'border-2 border-purple-500' : ''} ${isArtDirectorEntry ? 'border-2 border-green-500' : ''}`;
+        
+        // Use Art Director image if available, otherwise use game asset
+        let artUrl = allDoodlemon[doodledexNum].img;
+        if (doodledexEntry && doodledexEntry.image) {
+            artUrl = doodledexEntry.image;
+        }
         
         dexEntry.innerHTML = `
             <div class="aspect-square bg-gray-700 rounded-lg mb-2 flex items-center justify-center overflow-hidden">
@@ -296,8 +321,9 @@ function renderDoodleDexView(container) {
                     `<span class="text-gray-500 text-2xl">?</span>`
                 }
             </div>
-            <p class="text-sm ${isOwned ? 'text-white' : 'text-gray-500'}">#${String(doodledexNum).padStart(3, '0')} ${isCustom ? '🆕' : ''}</p>
+            <p class="text-sm ${isOwned ? 'text-white' : 'text-gray-500'}">#${String(doodledexNum).padStart(3, '0')} ${isCustom ? '🆕' : ''} ${isArtDirectorEntry ? '🎨' : ''}</p>
             <p class="text-xs ${isOwned ? 'text-gray-300' : 'text-gray-600'}">${isOwned ? allDoodlemon[doodledexNum].name : 'Unknown'}</p>
+            ${isArtDirectorEntry ? '<p class="text-xs text-green-400">Art Director</p>' : ''}
         `;
         
         grid.appendChild(dexEntry);
@@ -1030,6 +1056,20 @@ function loadGame() {
 }
 
 function setupEventListeners() {
+    // Listen for messages from Art Director
+    window.addEventListener('message', function(event) {
+        if (event.origin !== window.location.origin) return;
+        
+        if (event.data.type === 'DOODLEDEX_UPDATE') {
+            // Refresh the Doodledex view if currently visible
+            if (gameState.ui.currentView === 'doodledex') {
+                renderMainView('doodledex');
+            }
+            // Show a notification
+            logMessage(`New Doodlemon discovered: ${event.data.doodlemonName}! Check your Doodledex.`, "success");
+        }
+    });
+
     DOM.mainView.addEventListener('click', e => {
         const overlay = e.target.closest('.card-inspect-overlay');
         if (overlay) {
