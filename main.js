@@ -412,7 +412,7 @@ function buildCardElement(cardInfo, instance) {
         logoImg.onerror = function() {
             this.style.display = 'none'; // Hide if logo not found
         };
-        gradientBox.appendChild(logoImg);
+        cardInner.appendChild(logoImg); // Position relative to cardInner, not gradientBox
         
         cardInner.appendChild(gradientBox);
         
