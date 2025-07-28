@@ -422,7 +422,7 @@ function buildCardElement(cardInfo, instance) {
         
         // Add holo overlay for insert art cards
         const holoOverlay = document.createElement('div');
-        holoOverlay.className = 'card-holo-overlay';
+        holoOverlay.className = 'card-holo-overlay full-card';
         cardInner.appendChild(holoOverlay);
         
         cardElement.appendChild(cardInner);
