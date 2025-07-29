@@ -1,14 +1,9 @@
-/**
- * config.js
- * This file contains all the static data for the game.
- * All image paths now point to local files within the 'assets' folder.
- */
+// config.js
 
-// Path to the local assets folder.
 const ASSET_PATH = 'assets/';
 
 export const ASSETS = {
-    cardBack: 'https://i.imgur.com/ZVGjcFD.png', // This can remain external
+    cardBack: 'https://i.imgur.com/ZVGjcFD.png',
     frames: {
         standard: `${ASSET_PATH}frame_standard.png`,
         fullArt: `${ASSET_PATH}frame_fullart.png`
@@ -30,24 +25,12 @@ export const LAYOUT_BLUEPRINTS = {
 };
 
 function processSet(cardSet) {
-    const debutedDoodlemon = new Set();
     cardSet.cards.forEach(card => {
         const isFullArt = ['Alternate Art', 'Chase'].includes(card.rarity);
         const isInsertArt = card.rarity === 'Insert Art' || card.isInsertArt;
-        
-        if (isInsertArt) {
-            card.layout = 'Insert-Art';
-        } else if (isFullArt) {
-            card.layout = 'Full-Art';
-        } else {
-            card.layout = 'Standard';
-        }
-        
-        const isDebutEligible = ['Common', 'Uncommon', 'Holo Rare'].includes(card.rarity);
-        if (isDebutEligible && !debutedDoodlemon.has(card.doodledexNum)) {
-            card.isDebut = true;
-            debutedDoodlemon.add(card.doodledexNum);
-        }
+        if (isInsertArt) card.layout = 'Insert-Art';
+        else if (isFullArt) card.layout = 'Full-Art';
+        else card.layout = 'Standard';
     });
     return cardSet;
 }
@@ -75,7 +58,7 @@ const rawGenesisSet = {
         { id: 'GS016', name: 'Zenkey', doodledexNum: 39, rarity: 'Common', lore: 'Achieves perfect balance through meditation, able to stand on the tiniest surfaces.' },
         { id: 'GS017', name: 'Brawna', doodledexNum: 41, rarity: 'Common', lore: 'Despite its small size, it can lift objects ten times its own weight.' },
         { id: 'GS018', name: 'Boltsprout', doodledexNum: 44, rarity: 'Common', lore: 'Grows rapidly during thunderstorms, absorbing electrical energy through its leaves.' },
-        
+
         // Uncommon Cards
         { id: 'GS019', name: 'Petrisaur', doodledexNum: 2, rarity: 'Uncommon', lore: 'Its rocky hide becomes harder with age, eventually becoming nearly indestructible.' },
         { id: 'GS020', name: 'Aquameleon', doodledexNum: 5, rarity: 'Uncommon', lore: 'Can change its color to match any aquatic environment with perfect camouflage.' },
@@ -101,7 +84,7 @@ const rawGenesisSet = {
         { id: 'GS038', name: 'Lunachu', doodledexNum: 20, rarity: 'Holo Rare', lore: 'Draws power from moonlight, becoming stronger during each phase of the lunar cycle.' },
         { id: 'GS039', name: 'Grominable', doodledexNum: 23, rarity: 'Holo Rare', lore: 'This abominable snowman creates blizzards wherever it walks, reshaping entire landscapes.' },
         { id: 'GS040', name: 'Swipixie', doodledexNum: 25, rarity: 'Holo Rare', lore: 'Moves so quickly it appears to be in multiple places at once, confusing all who observe it.' },
-        
+
         // Special Cards (Alternate Arts & Chases) with explicit 'img' paths
         { id: 'GS-AA1', name: 'Royalzard', doodledexNum: 6, rarity: 'Alternate Art', img: `${ASSET_PATH}GS-AA1.png`, lore: 'A majestic variant with enhanced psychic abilities and crystalline scales.' },
         { id: 'GS-AA2', name: 'Strobeshroom', doodledexNum: 31, rarity: 'Alternate Art', img: `${ASSET_PATH}GS-AA2.png`, lore: 'This rare variant pulses with hypnotic patterns that can entrance entire forests.' },
@@ -113,10 +96,10 @@ const rawGenesisSet = {
         { id: 'GS-CH2', name: 'Van Gogh Lunachu', doodledexNum: 20, rarity: 'Chase', img: `${ASSET_PATH}GS-CH2.png`, lore: 'Painted in swirling cosmic colors, this artistic variant creates beautiful auroras in the night sky.' },
         { id: 'GS-CH3', name: 'Glitchra', doodledexNum: 87, rarity: 'Chase', img: `${ASSET_PATH}GS-CH3.png`, lore: 'A digital anomaly that exists between code and reality, constantly shifting between forms.' },
         { id: 'GS-CH4', name: 'Kaleidocat', doodledexNum: 86, rarity: 'Chase', img: `${ASSET_PATH}GS-CH4.png`, lore: 'Its fur displays an ever-changing pattern of colors that mesmerizes all who gaze upon it.' },
-        
+
         // Insert Art Test Card
         { id: 'GS-IA1', name: 'Holographic Geobble', doodledexNum: 1, rarity: 'Insert Art', img: `${ASSET_PATH}001-geobble.png`, isInsertArt: true, lore: 'A special holographic variant with rainbow energy flowing through its rocky exterior.' },
-        
+
         // Additional Doodlemon entries
         { id: 'GS051', name: 'Gumdrop', doodledexNum: 88, rarity: 'Common', lore: 'A sweet and bouncy creature that secretes colorful candy coating for protection.' },
         { id: 'GS052', name: 'Gumbrawl', doodledexNum: 89, rarity: 'Uncommon', lore: 'Its sticky exterior can trap opponents while delivering powerful stretchy punches.' },
@@ -140,42 +123,12 @@ export const TCG_SETS = {
     genesis: processSet(rawGenesisSet)
 };
 
-// This map is no longer needed because paths are generated automatically.
-export const DOODLEMON_ART = {};
-
-// Custom Doodlemon management
-export function loadCustomDoodlemon() {
-    try {
-        const customData = localStorage.getItem('customDoodlemon');
-        return customData ? JSON.parse(customData) : {};
-    } catch (error) {
-        console.error('Error loading custom Doodlemon:', error);
-        return {};
-    }
-}
-
 export function getAllDoodlemonForGame() {
-    const customDoodlemon = loadCustomDoodlemon();
     const result = {};
-    
-    // Create a combined map with both default and custom Doodlemon
-    // Default Doodlemon from cards
     TCG_SETS.genesis.cards.forEach(card => {
         if (!result[card.doodledexNum]) {
             result[card.doodledexNum] = { name: card.name, img: card.img };
         }
     });
-    
-    // Add custom Doodlemon
-    Object.entries(customDoodlemon).forEach(([id, data]) => {
-        const paddedDexNum = String(id).padStart(3, '0');
-        const formattedName = data.name.toLowerCase().replace(/\s+/g, '-');
-        result[id] = { 
-            name: data.name, 
-            img: `${ASSET_PATH}${paddedDexNum}-${formattedName}.png`,
-            isCustom: true
-        };
-    });
-    
     return result;
 }
