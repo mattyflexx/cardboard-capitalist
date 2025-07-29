@@ -416,13 +416,13 @@ function renderDoodlemonPackOpeningView(container, setName) {
   packContainer.id = 'pack-opening-container';
   
   // Initialize Stage 1: Scene Initialization
-  renderPackStage1(packContainer, set, packOpeningState);
+  renderPackStage1(packContainer, set, packOpeningState, setName);
   
   container.appendChild(packContainer);
 }
 
 // Stage 1: Scene Initialization - Centered sealed pack, await click
-function renderPackStage1(container, set, state) {
+function renderPackStage1(container, set, state, setName) {
   container.innerHTML = `
     <div class="pack-scene text-center">
       <h2 class="text-3xl font-bold text-white mb-8">Ready to open your ${set.name} pack?</h2>
@@ -467,14 +467,14 @@ function renderPackStage1(container, set, state) {
         playPackTearSFX();
         
         // Move to Stage 2
-        renderPackStage2(container, set, state);
+        renderPackStage2(container, set, state, setName);
       });
     }
   }, 0);
 }
 
 // Stage 2: Pack Rip Animation - Animate tear and reveal card stack  
-function renderPackStage2(container, set, state) {
+function renderPackStage2(container, set, state, setName) {
   container.innerHTML = `
     <div class="pack-rip-scene text-center">
       <h2 class="text-2xl font-bold text-white mb-8">Opening pack...</h2>
@@ -504,12 +504,12 @@ function renderPackStage2(container, set, state) {
   // Simulate pack rip animation duration
   setTimeout(() => {
     state.stage = 'revealing';
-    renderPackStage3(container, set, state);
+    renderPackStage3(container, set, state, setName);
   }, 2000); // 2 second rip animation
 }
 
 // Stage 3: Card Reveal Loop - Click stack to reveal cards one by one
-function renderPackStage3(container, set, state) {
+function renderPackStage3(container, set, state, setName) {
   const remainingCards = state.cards.length - state.currentCardIndex;
   const currentCard = state.currentCardIndex < state.cards.length ? state.cards[state.currentCardIndex] : null;
   
@@ -578,14 +578,14 @@ function renderPackStage3(container, set, state) {
     const cardStack = document.getElementById('card-stack');
     if (cardStack) {
       cardStack.addEventListener('click', () => {
-        revealNextCard(container, set, state, currentCard);
+        revealNextCard(container, set, state, currentCard, setName);
       });
     }
   }, 0);
 }
 
 // Reveal individual card with animation and rarity effects
-function revealNextCard(container, set, state, card) {
+function revealNextCard(container, set, state, card, setName) {
   const revealArea = document.getElementById('card-reveal-area');
   
   // Animate card moving from stack to center
@@ -631,7 +631,7 @@ function revealNextCard(container, set, state, card) {
   
   // Auto-advance after showing card for a moment
   setTimeout(() => {
-    renderPackStage3(container, set, state);
+    renderPackStage3(container, set, state, setName);
   }, 2500); // Show each card for 2.5 seconds
 }
 
@@ -795,17 +795,237 @@ function playCardFlipSFX() {
 
 function triggerTier1Effect() {
   console.log('✨ Triggering Tier 1 effect (HoloRare): shimmer/confetti, quick burst, positive SFX');
-  // TODO: Implement shimmer/confetti particle effects
-  // TODO: Implement quick burst animation
-  // TODO: Implement positive sound effect
+  
+  // Create confetti/shimmer effect
+  createConfettiEffect();
+  
+  // Add screen flash effect
+  createFlashEffect('holo');
+  
+  // Add card reveal area sparkle effects
+  addSparkleToRevealArea();
 }
 
 function triggerTier2Effect() {
   console.log('🎆 Triggering Tier 2 effect (Chase/AlternateArt): flash, beams, fireworks, major SFX');
-  // TODO: Implement flash animation
-  // TODO: Implement beam effects  
-  // TODO: Implement fireworks particle system
-  // TODO: Implement major sound effect
+  
+  // Create intense fireworks effect
+  createFireworksEffect();
+  
+  // Add dramatic screen flash
+  createFlashEffect('chase');
+  
+  // Add beam effects radiating from card
+  createBeamEffects();
+  
+  // Add extra celebration particles
+  createCelebrationExplosion();
+}
+
+// Create confetti particles effect
+function createConfettiEffect() {
+  const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A'];
+  
+  for (let i = 0; i < 50; i++) {
+    const confetti = document.createElement('div');
+    confetti.className = 'confetti-particle';
+    confetti.style.cssText = `
+      position: fixed;
+      width: 6px;
+      height: 6px;
+      background-color: ${colors[Math.floor(Math.random() * colors.length)]};
+      top: ${Math.random() * 100}vh;
+      left: ${Math.random() * 100}vw;
+      z-index: 9999;
+      border-radius: 50%;
+      animation: confettiFall ${2 + Math.random() * 2}s ease-out forwards;
+      transform: rotate(${Math.random() * 360}deg);
+    `;
+    
+    document.body.appendChild(confetti);
+    
+    // Remove after animation
+    setTimeout(() => {
+      if (confetti.parentNode) {
+        confetti.parentNode.removeChild(confetti);
+      }
+    }, 4000);
+  }
+}
+
+// Create fireworks effect for chase cards
+function createFireworksEffect() {
+  const colors = ['#FF0080', '#FFD700', '#00FF80', '#8040FF', '#FF4040'];
+  
+  for (let burst = 0; burst < 3; burst++) {
+    setTimeout(() => {
+      const centerX = 50 + (Math.random() - 0.5) * 40; // Spread around center
+      const centerY = 40 + (Math.random() - 0.5) * 30;
+      
+      for (let i = 0; i < 20; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'firework-particle';
+        
+        const angle = (i / 20) * Math.PI * 2;
+        const velocity = 30 + Math.random() * 20;
+        const endX = centerX + Math.cos(angle) * velocity;
+        const endY = centerY + Math.sin(angle) * velocity;
+        
+        particle.style.cssText = `
+          position: fixed;
+          width: 3px;
+          height: 3px;
+          background-color: ${colors[Math.floor(Math.random() * colors.length)]};
+          top: ${centerY}vh;
+          left: ${centerX}vw;
+          z-index: 9999;
+          border-radius: 50%;
+          box-shadow: 0 0 6px currentColor;
+          animation: fireworkBurst 1.5s ease-out forwards;
+          --endX: ${endX}vw;
+          --endY: ${endY}vh;
+        `;
+        
+        document.body.appendChild(particle);
+        
+        setTimeout(() => {
+          if (particle.parentNode) {
+            particle.parentNode.removeChild(particle);
+          }
+        }, 1500);
+      }
+    }, burst * 300);
+  }
+}
+
+// Create screen flash effect
+function createFlashEffect(type) {
+  const flash = document.createElement('div');
+  flash.className = `screen-flash ${type}`;
+  
+  const flashColor = type === 'chase' ? '#FFD700' : '#E6E6FA';
+  const duration = type === 'chase' ? '0.6s' : '0.4s';
+  
+  flash.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: ${flashColor};
+    opacity: 0;
+    z-index: 9998;
+    pointer-events: none;
+    animation: flashEffect ${duration} ease-out;
+  `;
+  
+  document.body.appendChild(flash);
+  
+  setTimeout(() => {
+    if (flash.parentNode) {
+      flash.parentNode.removeChild(flash);
+    }
+  }, 600);
+}
+
+// Add sparkle effect to reveal area
+function addSparkleToRevealArea() {
+  const revealArea = document.getElementById('card-reveal-area');
+  if (!revealArea) return;
+  
+  for (let i = 0; i < 15; i++) {
+    const sparkle = document.createElement('div');
+    sparkle.className = 'sparkle';
+    sparkle.style.cssText = `
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background-color: #FFD700;
+      border-radius: 50%;
+      top: ${Math.random() * 100}%;
+      left: ${Math.random() * 100}%;
+      z-index: 100;
+      animation: sparkleEffect 1.5s ease-out forwards;
+      box-shadow: 0 0 8px #FFD700;
+    `;
+    
+    revealArea.style.position = 'relative';
+    revealArea.appendChild(sparkle);
+    
+    setTimeout(() => {
+      if (sparkle.parentNode) {
+        sparkle.parentNode.removeChild(sparkle);
+      }
+    }, 1500);
+  }
+}
+
+// Create beam effects radiating from card
+function createBeamEffects() {
+  const revealArea = document.getElementById('card-reveal-area');
+  if (!revealArea) return;
+  
+  for (let i = 0; i < 8; i++) {
+    const beam = document.createElement('div');
+    beam.className = 'beam-effect';
+    
+    const angle = (i / 8) * 360;
+    beam.style.cssText = `
+      position: absolute;
+      width: 3px;
+      height: 100px;
+      background: linear-gradient(to bottom, #FFD700, transparent);
+      top: 50%;
+      left: 50%;
+      transform-origin: 0 0;
+      transform: translate(-50%, -50%) rotate(${angle}deg);
+      z-index: 99;
+      animation: beamPulse 1s ease-out forwards;
+      box-shadow: 0 0 10px #FFD700;
+    `;
+    
+    revealArea.style.position = 'relative';
+    revealArea.appendChild(beam);
+    
+    setTimeout(() => {
+      if (beam.parentNode) {
+        beam.parentNode.removeChild(beam);
+      }
+    }, 1000);
+  }
+}
+
+// Create celebration explosion for chase cards
+function createCelebrationExplosion() {
+  const colors = ['#FF1493', '#00CED1', '#FFD700', '#FF69B4', '#32CD32'];
+  
+  for (let i = 0; i < 100; i++) {
+    const particle = document.createElement('div');
+    particle.className = 'celebration-particle';
+    
+    const size = 2 + Math.random() * 4;
+    particle.style.cssText = `
+      position: fixed;
+      width: ${size}px;
+      height: ${size}px;
+      background-color: ${colors[Math.floor(Math.random() * colors.length)]};
+      top: 50vh;
+      left: 50vw;
+      z-index: 9999;
+      border-radius: 50%;
+      animation: explosionParticle ${1 + Math.random()}s ease-out forwards;
+      --randomX: ${(Math.random() - 0.5) * 200}vw;
+      --randomY: ${(Math.random() - 0.5) * 200}vh;
+    `;
+    
+    document.body.appendChild(particle);
+    
+    setTimeout(() => {
+      if (particle.parentNode) {
+        particle.parentNode.removeChild(particle);
+      }
+    }, 2000);
+  }
 }
 
 function animateCardsOff() {

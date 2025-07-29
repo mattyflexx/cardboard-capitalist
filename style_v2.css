@@ -564,6 +564,82 @@ body {
   animation: tier2-explosion 3s ease-in-out;
 }
 
+/* Celebration effects animations */
+@keyframes confettiFall {
+  0% {
+    transform: translateY(-100vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+@keyframes fireworkBurst {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--endX), var(--endY)) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes flashEffect {
+  0% {
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes sparkleEffect {
+  0% {
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.5) rotate(180deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0) rotate(360deg);
+  }
+}
+
+@keyframes beamPulse {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--angle, 0deg)) scale(0, 1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(var(--angle, 0deg)) scale(1, 1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--angle, 0deg)) scale(2, 1);
+  }
+}
+
+@keyframes explosionParticle {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--randomX), var(--randomY)) scale(0);
+    opacity: 0;
+  }
+}
+
 /* Responsive adjustments for pack opening */
 @media (max-width: 768px) {
   .pack-opening-container {
