@@ -1,5 +1,13 @@
 import { TCG_SETS, ASSETS, LAYOUT_BLUEPRINTS, getAllDoodlemonForGame } from './config.js';
 import { gameState, updateGameState, calculateNetWorth, getCardValue, determineCardCondition, updateMarket, initializeStats, updateStats, ACHIEVEMENTS, CARD_CONDITIONS } from './state.js';
+import { 
+    showNotification, 
+    showPackOpenedNotification, 
+    showSetUnlockedNotification, 
+    showAchievementNotification,
+    showSuccessNotification,
+    showInfoNotification 
+} from './notifications.js';
 
 const DOM = {
     mainView: document.getElementById('main-view'),
@@ -23,7 +31,7 @@ let currentTutorialStep = 0;
 const ASSET_PATH = 'assets/';
 
 function initializeGame() {
-    console.log("Game is initializing...");
+    showInfoNotification("Game is initializing...", 2000);
     
     // Generate image paths for all standard cards.
     TCG_SETS.genesis.cards.forEach(card => {
@@ -696,6 +704,8 @@ function renderPackStage4(container, set, state, setName) {
         gameState.player.sealedInventory[setName]--;
         
         // Log pack opening completion
+        const rareCards = state.cards.filter(card => ['Holo Rare', 'Alternate Art', 'Chase'].includes(card.rarity));
+        showPackOpenedNotification(set.name, state.cards.length, rareCards);
         logMessage(`Opened a ${set.name} pack! Got ${state.cards.length} cards.`, "success");
         state.cards.forEach(card => logMessage(`• ${card.name} (${card.rarity})`, "info"));
         
@@ -784,17 +794,17 @@ function triggerRarityEffects(card) {
 // TODO: Replace these with actual implementations
 
 function playPackTearSFX() {
-  console.log('🔊 Playing pack tear sound effect');
-  // TODO: Implement actual sound effect
+    showInfoNotification("🔊 Pack opening...", 1500);
+    // TODO: Implement actual sound effect
 }
 
 function playCardFlipSFX() {
-  console.log('🔊 Playing card flip sound effect');
-  // TODO: Implement actual sound effect
+    showInfoNotification("🔊 Card revealed!", 1000);
+    // TODO: Implement actual sound effect
 }
 
 function triggerTier1Effect() {
-  console.log('✨ Triggering Tier 1 effect (HoloRare): shimmer/confetti, quick burst, positive SFX');
+  showSuccessNotification('✨ Holo Rare discovered! Shimmering effects activated!', 3000);
   
   // Create confetti/shimmer effect
   createConfettiEffect();
@@ -807,7 +817,7 @@ function triggerTier1Effect() {
 }
 
 function triggerTier2Effect() {
-  console.log('🎆 Triggering Tier 2 effect (Chase/AlternateArt): flash, beams, fireworks, major SFX');
+  showSuccessNotification('🎆 ULTRA RARE! Chase/Alternate Art discovered! Fireworks activated!', 5000);
   
   // Create intense fireworks effect
   createFireworksEffect();
@@ -1029,8 +1039,8 @@ function createCelebrationExplosion() {
 }
 
 function animateCardsOff() {
-  console.log('🎬 Animating cards off screen');
-  // TODO: Implement card exit animations
+    showInfoNotification('🎬 Cards added to collection!', 2000);
+    // TODO: Implement card exit animations
 }
 
 function renderCardManagementView(container, cardId, instanceUid) {
@@ -1400,6 +1410,8 @@ function buyPack(setName) {
     gameState.player.cash -= set.pack.price;
     updateStats('totalSpent', set.pack.price);
     gameState.player.sealedInventory[setName]++;
+    
+    showSuccessNotification(`Purchased ${set.name} booster pack for $${set.pack.price.toFixed(2)}!`, 3000);
     logMessage(`Bought a ${set.name} booster pack for $${set.pack.price.toFixed(2)}!`, "success");
     return true;
 }
@@ -1424,6 +1436,9 @@ function openPack(setName) {
     
     updateStats('packsOpened', 1);
     updateStats('cardsAcquired', packCards.length);
+    
+    const rareCards = packCards.filter(card => ['Holo Rare', 'Alternate Art', 'Chase'].includes(card.rarity));
+    showPackOpenedNotification(set.name, packCards.length, rareCards);
     logMessage(`Opened a ${set.name} pack! Got ${packCards.length} cards.`, "success");
     packCards.forEach(card => logMessage(`• ${card.name} (${card.rarity})`, "info"));
     
@@ -1450,6 +1465,8 @@ function buySupply(supplyType) {
     
     gameState.player.cash -= supply.price;
     gameState.player.supplies[supplyType] += supply.amount;
+    
+    showSuccessNotification(`Purchased ${supply.amount} ${supplyType} for $${supply.price.toFixed(2)}!`, 2500);
     logMessage(`Bought ${supply.amount} ${supplyType} for $${supply.price.toFixed(2)}!`, "success");
     updateUI();
 }
@@ -1481,6 +1498,7 @@ function nextDay() {
     const newAchievements = checkAchievements();
     if (newAchievements.length > 0) {
         newAchievements.forEach(achievement => {
+            showAchievementNotification(achievement);
             logMessage(`Achievement Unlocked: ${achievement.name}`, "success");
             if (achievement.reward?.cash) logMessage(`Reward: $${achievement.reward.cash} added to your account`, "success");
             if (achievement.reward?.supplies) Object.entries(achievement.reward.supplies).forEach(([item, amount]) => logMessage(`Reward: ${amount} ${item} added to your supplies`, "success"));
@@ -1580,8 +1598,44 @@ function logMessage(message, type = 'normal') {
 function addCardToCollection(cardInfo, condition = 'Near Mint') {
     if (!cardInfo) return;
     const cardId = cardInfo.id;
+    const wasNewCard = !gameState.player.collection[cardId];
+    
     if (!gameState.player.collection[cardId]) gameState.player.collection[cardId] = { cardInfo: cardInfo, instances: [] };
     gameState.player.collection[cardId].instances.push({ uid: Date.now() + Math.random(), condition: condition, sleeved: false, toploaded: false });
+    
+    // Check for set completion milestones if this was a new card
+    if (wasNewCard) {
+        checkSetCompletionMilestones();
+    }
+}
+
+function checkSetCompletionMilestones() {
+    const uniqueCards = Object.keys(gameState.player.collection).length;
+    const totalCards = TCG_SETS.genesis.cards.length;
+    const completionPercentage = Math.round((uniqueCards / totalCards) * 100);
+    
+    // Check for milestone notifications (25%, 50%, 75%, 100%)
+    const milestones = [25, 50, 75, 100];
+    milestones.forEach(milestone => {
+        if (completionPercentage >= milestone) {
+            const milestoneKey = `genesis_${milestone}`;
+            
+            // Check if we haven't already notified for this milestone
+            if (!gameState.player.milestones) {
+                gameState.player.milestones = {};
+            }
+            
+            if (!gameState.player.milestones[milestoneKey]) {
+                gameState.player.milestones[milestoneKey] = true;
+                
+                if (milestone === 100) {
+                    showSetUnlockedNotification("Genesis Set Complete!", completionPercentage);
+                } else {
+                    showSetUnlockedNotification("Genesis Set", completionPercentage);
+                }
+            }
+        }
+    });
 }
 
 function sleeveCard(cardId, instanceUid) {
