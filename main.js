@@ -1177,92 +1177,79 @@ function renderCardManagementView(container, cardId, instanceUid) {
 
 function buildCardElement(cardInfo, instance) {
     const cardElement = document.createElement('div');
-    cardElement.className = 'card-container relative';
+    cardElement.className = 'card-container';
     cardElement.dataset.cardId = cardInfo.id;
     if (instance) cardElement.dataset.instanceUid = instance.uid;
 
-    // Enhanced tooltip data
-    const cardValue = instance ? getCardValue(cardInfo, instance) : 0;
-    const condition = instance ? instance.condition : 'Unknown';
-    const dateAcquired = instance ? new Date(instance.dateAcquired).toLocaleDateString() : 'Unknown';
-    
-    // Create tooltip content
-    const tooltipContent = `
-        <div class="text-sm">
-            <div class="font-bold text-white">${cardInfo.name}</div>
-            <div class="text-gray-300">${cardInfo.rarity}</div>
-            <div class="text-green-400">Value: $${cardValue.toFixed(2)}</div>
-            <div class="text-blue-400">Condition: ${condition}</div>
-            <div class="text-gray-400">Acquired: ${dateAcquired}</div>
-            ${cardInfo.lore ? `<div class="text-gray-300 mt-2 max-w-xs">${cardInfo.lore}</div>` : ''}
-        </div>
-    `;
-    
-    // Add tooltip attributes
-    cardElement.setAttribute('data-tooltip', tooltipContent);
-    cardElement.setAttribute('title', `${cardInfo.name} - ${cardInfo.rarity} - $${cardValue.toFixed(2)}`);
-    
-    // Add hover effects
-    cardElement.addEventListener('mouseenter', showCardTooltip);
-    cardElement.addEventListener('mouseleave', hideCardTooltip);
-    cardElement.addEventListener('mousemove', moveCardTooltip);
+    // 1. Add Lazy-Loaded Art Image
+    const artImg = createLazyCardImage(
+        cardInfo.img,
+        cardInfo.name,
+        'card-art'
+    );
+    cardElement.appendChild(artImg);
 
-    // Handle Insert Art cards with special styling
-    if (cardInfo.layout === 'Insert-Art') {
-        cardElement.classList.add('card-insert-art');
-        
-        const cardInner = document.createElement('div');
-        cardInner.className = 'card-inner';
-        
-        // Use lazy loading for insert art card images
-        const artImg = createLazyCardImage(
-            cardInfo.img || `${ASSET_PATH}fallback.png`,
-            cardInfo.name,
-            'card-art',
-            function(errorImg) {
-                errorImg.src = `${ASSET_PATH}fallback.png`;
-                errorImg.className = errorImg.className.replace('loading', 'error');
-            }
-        );
-        cardInner.appendChild(artImg);
-        
-        // Use the provided .card-text-overlay CSS for insert cards
-        const textOverlay = document.createElement('div');
-        textOverlay.className = 'card-text-overlay';
-        
+    // 2. Add Frame
+    const frameImg = document.createElement('img');
+    const frameType = cardInfo.layout === 'Full-Art' ? 'fullArt' : 'standard';
+    frameImg.src = ASSETS.frames[frameType];
+    frameImg.className = 'card-frame';
+    cardElement.appendChild(frameImg);
+
+    // 3. Add Text Overlay
+    const textOverlay = document.createElement('div');
+    textOverlay.className = 'card-text-overlay';
+
+    const blueprint = LAYOUT_BLUEPRINTS[cardInfo.layout === 'Insert-Art' ? 'insertArt' : cardInfo.layout.toLowerCase()] || LAYOUT_BLUEPRINTS.standard;
+    const canvasWidth = 750;
+    const canvasHeight = 1050;
+
+    // Name Box
+    if (blueprint.name) {
         const nameBox = document.createElement('div');
         nameBox.className = 'card-name-box';
-        nameBox.textContent = cardInfo.name;
-        
-        // Position the name box using the insertArt layout coordinates
-        const layout = LAYOUT_BLUEPRINTS.insertArt;
-        if (layout && layout.name) {
-            nameBox.style.left = `${(layout.name.x / 750) * 100}%`;
-            nameBox.style.top = `${(layout.name.y / 1050) * 100}%`;
-            nameBox.style.width = `${(layout.name.width / 750) * 100}%`;
-            nameBox.style.height = `${(layout.name.height / 1050) * 100}%`;
+        if (cardInfo.layout === 'Full-Art') {
+            nameBox.classList.add('full-art-name-box');
         }
-        
+        nameBox.style.left = `${(blueprint.name.x / canvasWidth) * 100}%`;
+        nameBox.style.top = `${(blueprint.name.y / canvasHeight) * 100}%`;
+        nameBox.style.width = `${(blueprint.name.width / canvasWidth) * 100}%`;
+        nameBox.style.height = `${(blueprint.name.height / canvasHeight) * 100}%`;
+        nameBox.textContent = cardInfo.name;
         textOverlay.appendChild(nameBox);
-        cardInner.appendChild(textOverlay);
-        
-        const textureOverlay = document.createElement('div');
-        textureOverlay.className = 'card-texture-overlay';
-        cardInner.appendChild(textureOverlay);
-        
-        // Add holo overlay for insert art cards
+    }
+
+    // Lore Box (only for standard layout)
+    if (cardInfo.layout === 'Standard' && blueprint.lore) {
+        const loreBox = document.createElement('div');
+        loreBox.className = 'card-lore-box';
+        loreBox.style.left = `${(blueprint.lore.x / canvasWidth) * 100}%`;
+        loreBox.style.top = `${(blueprint.lore.y / canvasHeight) * 100}%`;
+        loreBox.style.width = `${(blueprint.lore.width / canvasWidth) * 100}%`;
+        loreBox.style.height = `${(blueprint.lore.height / canvasHeight) * 100}%`;
+        loreBox.textContent = cardInfo.lore || "A mysterious creature.";
+        textOverlay.appendChild(loreBox);
+    }
+    cardElement.appendChild(textOverlay);
+
+    // 4. Add Holo Effect if applicable
+    if (['Holo Rare', 'Chase', 'Alternate Art', 'Insert Art'].includes(cardInfo.rarity)) {
         const holoOverlay = document.createElement('div');
         holoOverlay.className = 'card-holo-overlay';
-        cardInner.appendChild(holoOverlay);
-        
-        cardElement.appendChild(cardInner);
-        
-        const inspectOverlay = document.createElement('div');
-        inspectOverlay.className = 'card-inspect-overlay';
-        cardElement.appendChild(inspectOverlay);
-        
-        return cardElement;
+        if (cardInfo.rarity !== 'Insert Art') {
+            holoOverlay.classList.add('full-card');
+        }
+        cardElement.appendChild(holoOverlay);
     }
+
+    // 5. Add Inspect Overlay for Clicks
+    const inspectOverlay = document.createElement('div');
+    inspectOverlay.className = 'card-inspect-overlay';
+    cardElement.appendChild(inspectOverlay);
+
+    return cardElement;
+}
+
 
     // Standard and Full-Art card handling with lazy loading
     const artImg = createLazyCardImage(
