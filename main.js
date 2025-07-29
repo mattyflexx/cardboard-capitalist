@@ -164,7 +164,7 @@ function renderCollectionView(container) {
   collectionDiv.appendChild(statsDiv);
   
   const grid = document.createElement('div');
-  grid.className = 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4';
+  grid.className = 'grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4';
   grid.id = 'collection-grid';
   
   if (Object.keys(gameState.player.collection).length === 0) {
@@ -721,7 +721,15 @@ function generatePackCards(set) {
   
   for (let i = 0; i < 11; i++) {
     const rarity = weightedRandomChoice(rarityWeights);
-    const availableCards = set.cards.filter(c => c.rarity === rarity);
+    // For base cards (Common, Uncommon, Holo Rare), only include cards 001-040
+    let availableCards;
+    if (['Common', 'Uncommon', 'Holo Rare'].includes(rarity)) {
+      availableCards = set.cards.filter(c => c.rarity === rarity && c.doodledexNum >= 1 && c.doodledexNum <= 40);
+    } else {
+      // For special cards (Alternate Art, Chase, Insert Art), include all
+      availableCards = set.cards.filter(c => c.rarity === rarity);
+    }
+    
     if (availableCards.length > 0) {
       const randomCard = availableCards[Math.floor(Math.random() * availableCards.length)];
       packCards.push(randomCard);
@@ -877,40 +885,25 @@ function buildCardElement(cardInfo, instance) {
         };
         cardInner.appendChild(artImg);
         
-        const gradientBox = document.createElement('div');
-        gradientBox.className = 'card-gradient-box';
+        // Use the provided .card-text-overlay CSS for insert cards
+        const textOverlay = document.createElement('div');
+        textOverlay.className = 'card-text-overlay';
         
-        const doodlemonName = document.createElement('div');
-        doodlemonName.className = 'card-doodlemon-name';
-        doodlemonName.textContent = 'Doodlemon';
+        const nameBox = document.createElement('div');
+        nameBox.className = 'card-name-box';
+        nameBox.textContent = cardInfo.name;
         
-        // Dynamic text sizing based on content width
-        function adjustTextSize() {
-            const maxWidth = gradientBox.offsetWidth * 0.9; // 90% of container width
-            let fontSize = 20;
-            doodlemonName.style.fontSize = fontSize + 'px';
-            
-            while (doodlemonName.scrollWidth > maxWidth && fontSize > 8) {
-                fontSize -= 1;
-                doodlemonName.style.fontSize = fontSize + 'px';
-            }
+        // Position the name box using the insertArt layout coordinates
+        const layout = LAYOUT_BLUEPRINTS.insertArt;
+        if (layout && layout.name) {
+            nameBox.style.left = `${(layout.name.x / 750) * 100}%`;
+            nameBox.style.top = `${(layout.name.y / 1050) * 100}%`;
+            nameBox.style.width = `${(layout.name.width / 750) * 100}%`;
+            nameBox.style.height = `${(layout.name.height / 1050) * 100}%`;
         }
         
-        gradientBox.appendChild(doodlemonName);
-        
-        // Adjust size after element is added to DOM
-        setTimeout(adjustTextSize, 10);
-        
-        const logoImg = document.createElement('img');
-        logoImg.src = `${ASSET_PATH}logo.png`;
-        logoImg.alt = 'Doodlemon logo';
-        logoImg.className = 'card-doodlemon-logo';
-        logoImg.onerror = function() {
-            this.style.display = 'none'; // Hide if logo not found
-        };
-        gradientBox.appendChild(logoImg);
-        
-        cardInner.appendChild(gradientBox);
+        textOverlay.appendChild(nameBox);
+        cardInner.appendChild(textOverlay);
         
         const textureOverlay = document.createElement('div');
         textureOverlay.className = 'card-texture-overlay';
@@ -988,8 +981,8 @@ function buildCardElement(cardInfo, instance) {
     
     cardElement.appendChild(textOverlay);
 
-    // Add holo effect for Holo Rare cards
-    if (cardInfo.rarity === 'Holo Rare') {
+    // Add holo effect for Holo Rare cards and all insert/chase cards
+    if (cardInfo.rarity === 'Holo Rare' || cardInfo.rarity === 'Chase' || cardInfo.rarity === 'Alternate Art') {
         const holoOverlay = document.createElement('div');
         holoOverlay.className = 'card-holo-overlay full-card';
         cardElement.appendChild(holoOverlay);
