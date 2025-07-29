@@ -1,5 +1,6 @@
 import { TCG_SETS, ASSETS, LAYOUT_BLUEPRINTS, getAllDoodlemonForGame } from './config.js';
 import { gameState, updateGameState, calculateNetWorth, getCardValue, determineCardCondition, updateMarket, initializeStats, updateStats, ACHIEVEMENTS, CARD_CONDITIONS } from './state.js';
+import { createSetSelector, getAvailableSets, SET_INFO, getSetCompletion, showNotification } from './ui/setSelector.js';
 
 const DOM = {
     mainView: document.getElementById('main-view'),
@@ -25,14 +26,20 @@ const ASSET_PATH = 'assets/';
 function initializeGame() {
     console.log("Game is initializing...");
     
-    // Generate image paths for all standard cards.
-    TCG_SETS.genesis.cards.forEach(card => {
-        if (!card.img) {
-            const paddedDexNum = String(card.doodledexNum).padStart(3, '0');
-            
-            // Convert the card name to lowercase and replace spaces with hyphens to match filenames.
-            const formattedName = card.name.toLowerCase().replace(/\s+/g, '-');
-            card.img = `${ASSET_PATH}${paddedDexNum}-${formattedName}.png`;
+    // Generate image paths for all cards in all available sets
+    const availableSets = Object.keys(TCG_SETS);
+    availableSets.forEach(setKey => {
+        const set = TCG_SETS[setKey];
+        if (set && set.cards) {
+            set.cards.forEach(card => {
+                if (!card.img) {
+                    const paddedDexNum = String(card.doodledexNum).padStart(3, '0');
+                    
+                    // Convert the card name to lowercase and replace spaces with hyphens to match filenames.
+                    const formattedName = card.name.toLowerCase().replace(/\s+/g, '-');
+                    card.img = `${ASSET_PATH}${paddedDexNum}-${formattedName}.png`;
+                }
+            });
         }
     });
 
@@ -40,10 +47,24 @@ function initializeGame() {
 
     if (!gameLoaded) {
         initializeStats();
-        addCardToCollection(TCG_SETS.genesis.cards.find(c => c.id === 'GS032'));
-        addCardToCollection(TCG_SETS.genesis.cards.find(c => c.id === 'GS-AA1'));
-        addCardToCollection(TCG_SETS.genesis.cards.find(c => c.id === 'GS001'));
-        addCardToCollection(TCG_SETS.genesis.cards.find(c => c.id === 'GS-IA1'));
+        
+        // Add starter cards from the first available set
+        const firstAvailableSet = getAvailableSets()[0];
+        if (firstAvailableSet && TCG_SETS[firstAvailableSet]) {
+            const starterSet = TCG_SETS[firstAvailableSet];
+            // Add a few starter cards for new players
+            const starterCards = [
+                starterSet.cards.find(c => c.rarity === 'Holo Rare'),
+                starterSet.cards.find(c => c.rarity === 'Alternate Art'),
+                starterSet.cards.find(c => c.rarity === 'Common'),
+                starterSet.cards.find(c => c.rarity === 'Insert Art')
+            ].filter(Boolean); // Remove any undefined cards
+            
+            starterCards.forEach(card => {
+                if (card) addCardToCollection(card);
+            });
+        }
+        
         logMessage("Welcome to Cardboard Capitalist! Your trading card journey begins now.", "system");
     }
 
@@ -106,7 +127,8 @@ function renderMainView(viewName) {
                     renderPackOpeningView(DOM.mainView, gameState.ui.selectedPack);
                 }
             } else {
-                renderMainView('store');
+                DOM.viewTitle.textContent = 'Pack Opening';
+                renderPackOpeningView(DOM.mainView, null);
             }
             break;
         default:
@@ -153,12 +175,22 @@ function renderCollectionView(container) {
   statsDiv.className = 'bg-gray-800 p-4 rounded-lg text-sm';
   const totalCards = Object.values(gameState.player.collection).reduce((sum, card) => sum + card.instances.length, 0);
   const uniqueCards = Object.keys(gameState.player.collection).length;
+  
+  // Calculate total possible cards from all available sets
+  const availableSets = getAvailableSets();
+  const totalPossibleCards = availableSets.reduce((sum, setKey) => {
+    const set = TCG_SETS[setKey];
+    return sum + (set ? set.cards.length : 0);
+  }, 0);
+  
+  const completionPercentage = totalPossibleCards > 0 ? Math.round((uniqueCards / totalPossibleCards) * 100) : 0;
+  
   statsDiv.innerHTML = `
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
       <div><p class="text-gray-400">Total Cards</p><p class="text-xl font-bold text-white">${totalCards}</p></div>
       <div><p class="text-gray-400">Unique Cards</p><p class="text-xl font-bold text-white">${uniqueCards}</p></div>
       <div><p class="text-gray-400">Collection Value</p><p class="text-xl font-bold text-green-400">$${calculateCollectionValue().toFixed(2)}</p></div>
-      <div><p class="text-gray-400">Completion</p><p class="text-xl font-bold text-blue-400">${Math.round((uniqueCards / TCG_SETS.genesis.cards.length) * 100)}%</p></div>
+      <div><p class="text-gray-400">Completion</p><p class="text-xl font-bold text-blue-400">${completionPercentage}%</p></div>
     </div>
   `;
   collectionDiv.appendChild(statsDiv);
@@ -234,41 +266,51 @@ function renderStoreView(container) {
     const storeDiv = document.createElement('div');
     storeDiv.className = 'space-y-6';
     
-    storeDiv.innerHTML = `
-        <div class="bg-gray-800 p-6 rounded-lg">
-            <h3 class="text-xl font-bold mb-4 text-white">Booster Packs</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div class="bg-gray-700 p-4 rounded-lg text-center">
-                    <img src="${TCG_SETS.genesis.pack.img}" alt="Genesis Pack" class="w-32 h-48 mx-auto mb-4 object-contain">
-                    <h4 class="font-bold text-white mb-2">Genesis Booster Pack</h4>
-                    <p class="text-green-400 font-bold mb-4">$${TCG_SETS.genesis.pack.price.toFixed(2)}</p>
-                    <button class="buy-pack-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full" data-set="genesis">
-                        Buy Pack
-                    </button>
-                </div>
+    // Create booster packs section with set selector
+    const packsSection = document.createElement('div');
+    packsSection.className = 'space-y-4';
+    
+    const packsTitle = document.createElement('h3');
+    packsTitle.className = 'text-xl font-bold mb-4 text-white';
+    packsTitle.textContent = 'Booster Packs';
+    packsSection.appendChild(packsTitle);
+    
+    // Use set selector for dynamic pack display
+    const packsSelectorContainer = document.createElement('div');
+    createSetSelector(packsSelectorContainer, {
+        mode: 'store',
+        onSetSelect: (setKey) => {
+            gameState.ui.selectedSet = setKey;
+        }
+    });
+    packsSection.appendChild(packsSelectorContainer);
+    
+    storeDiv.appendChild(packsSection);
+    
+    // Supplies section remains the same
+    const suppliesDiv = document.createElement('div');
+    suppliesDiv.className = 'bg-gray-800 p-6 rounded-lg';
+    suppliesDiv.innerHTML = `
+        <h3 class="text-xl font-bold mb-4 text-white">Supplies</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-gray-700 p-4 rounded-lg text-center">
+                <h4 class="font-bold text-white mb-2">Card Sleeves (100 pack)</h4>
+                <p class="text-green-400 font-bold mb-4">$5.00</p>
+                <button class="buy-supply-btn bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded w-full" data-supply="sleeves">
+                    Buy Sleeves
+                </button>
             </div>
-        </div>
-        <div class="bg-gray-800 p-6 rounded-lg">
-            <h3 class="text-xl font-bold mb-4 text-white">Supplies</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="bg-gray-700 p-4 rounded-lg text-center">
-                    <h4 class="font-bold text-white mb-2">Card Sleeves (100 pack)</h4>
-                    <p class="text-green-400 font-bold mb-4">$5.00</p>
-                    <button class="buy-supply-btn bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded w-full" data-supply="sleeves">
-                        Buy Sleeves
-                    </button>
-                </div>
-                <div class="bg-gray-700 p-4 rounded-lg text-center">
-                    <h4 class="font-bold text-white mb-2">Toploaders (25 pack)</h4>
-                    <p class="text-green-400 font-bold mb-4">$3.00</p>
-                    <button class="buy-supply-btn bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded w-full" data-supply="toploaders">
-                        Buy Toploaders
-                    </button>
-                </div>
+            <div class="bg-gray-700 p-4 rounded-lg text-center">
+                <h4 class="font-bold text-white mb-2">Toploaders (25 pack)</h4>
+                <p class="text-green-400 font-bold mb-4">$3.00</p>
+                <button class="buy-supply-btn bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded w-full" data-supply="toploaders">
+                    Buy Toploaders
+                </button>
             </div>
         </div>
     `;
     
+    storeDiv.appendChild(suppliesDiv);
     container.appendChild(storeDiv);
 }
 
@@ -341,50 +383,49 @@ function renderDoodleDexView(container) {
 
 
 function renderPackOpeningView(container, setName) {
-  const set = TCG_SETS[setName];
-  if (!set) return;
-  
-  const packsAvailable = gameState.player.sealedInventory[setName] || 0;
-  
   const packOpeningDiv = document.createElement('div');
   packOpeningDiv.className = 'flex flex-col items-center space-y-6 p-6';
   
-  if (packsAvailable > 0) {
-    packOpeningDiv.innerHTML = `
-      <div class="text-center">
-        <h3 class="text-2xl font-bold text-white mb-4">${set.name} Booster Pack</h3>
-        <p class="text-gray-300 mb-6">You have ${packsAvailable} pack${packsAvailable > 1 ? 's' : ''} to open!</p>
-      </div>
-      <div class="bg-gray-800 p-8 rounded-lg text-center">
-        <img src="${set.pack.img}" alt="${set.name} Pack" class="w-32 h-48 mx-auto mb-6 object-contain" onerror="this.style.display='none'">
-        <button id="open-pack-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg" data-set="${setName}">
-          Open Pack!
-        </button>
-      </div>
-      <div class="text-center">
-        <p class="text-gray-400 text-sm">Click the button above to open your pack and reveal your cards!</p>
-      </div>
-    `;
+  if (setName) {
+    // Specific set selected, show pack opening interface
+    createSetSelector(packOpeningDiv, {
+      mode: 'pack-opening',
+      selectedSet: setName,
+      onSetSelect: (newSetName) => {
+        gameState.ui.selectedPack = newSetName;
+        renderMainView('pack-opening');
+      }
+    });
   } else {
-    packOpeningDiv.innerHTML = `
-      <div class="text-center">
-        <h3 class="text-2xl font-bold text-white mb-4">No Packs Available</h3>
-        <p class="text-gray-300 mb-6">You don't have any ${set.name} packs to open.</p>
-        <button class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded" onclick="renderMainView('store')">
-          Go to Store
-        </button>
-      </div>
+    // No set selected, show set selector
+    const titleDiv = document.createElement('div');
+    titleDiv.className = 'text-center mb-6';
+    titleDiv.innerHTML = `
+      <h3 class="text-2xl font-bold text-white mb-4">Select a Set to Open Packs</h3>
+      <p class="text-gray-300">Choose which trading card set you'd like to open packs from.</p>
     `;
+    packOpeningDiv.appendChild(titleDiv);
+    
+    createSetSelector(packOpeningDiv, {
+      mode: 'pack-opening',
+      onSetSelect: (selectedSetName) => {
+        gameState.ui.selectedPack = selectedSetName;
+        renderMainView('pack-opening');
+      }
+    });
   }
   
   container.appendChild(packOpeningDiv);
   
   // Add event listener for opening packs
-  const openPackBtn = document.getElementById('open-pack-btn');
+  const openPackBtn = container.querySelector('#open-pack-btn');
   if (openPackBtn) {
     openPackBtn.addEventListener('click', () => {
-      openPack(setName);
-      renderMainView('collection'); // Return to collection after opening
+      const targetSet = openPackBtn.dataset.set || setName;
+      if (targetSet) {
+        openPack(targetSet);
+        renderMainView('collection'); // Return to collection after opening
+      }
     });
   }
 }
@@ -392,7 +433,10 @@ function renderPackOpeningView(container, setName) {
 // Animated Pack Opening View for Doodlemon Packs
 function renderDoodlemonPackOpeningView(container, setName) {
   const set = TCG_SETS[setName];
-  if (!set) return;
+  if (!set) {
+    renderPackOpeningView(container, setName); // Fallback to regular view
+    return;
+  }
   
   const packsAvailable = gameState.player.sealedInventory[setName] || 0;
   if (packsAvailable <= 0) {
@@ -1576,6 +1620,9 @@ function logMessage(message, type = 'normal') {
     DOM.logFeed.prepend(p);
     if (DOM.logFeed.children.length > 100) DOM.logFeed.removeChild(DOM.logFeed.lastChild);
 }
+
+// Make logMessage available globally for the set selector
+window.logMessage = logMessage;
 
 function addCardToCollection(cardInfo, condition = 'Near Mint') {
     if (!cardInfo) return;
