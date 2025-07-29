@@ -17,6 +17,53 @@ const CRITICAL_ASSETS = new Set([
 // Cache for loaded images to avoid repeated requests
 const imageCache = new Map();
 
+// Failed load attempts tracking to prevent infinite loops
+const failedAttempts = new Set();
+
+/**
+ * Try various fallback strategies for failed card image loads
+ * @param {string} originalSrc - The original source that failed
+ * @param {string} cardName - The card name for generating alternatives
+ * @returns {string|null} Alternative source to try, or null if no alternatives
+ */
+function tryFallbackStrategies(originalSrc, cardName) {
+    // Prevent infinite recursion
+    if (failedAttempts.has(originalSrc)) {
+        return null;
+    }
+    failedAttempts.add(originalSrc);
+    
+    // Extract number from path for fallback strategies
+    const numberMatch = originalSrc.match(/(\d{3})-/);
+    if (!numberMatch) return null;
+    
+    const paddedNum = numberMatch[1];
+    const basePath = 'assets/';
+    
+    // Strategy 1: Try removing special characters from name
+    const cleanName = cardName.toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .replace(/\s+/g, '-');
+    const cleanPath = `${basePath}${paddedNum}-${cleanName}.png`;
+    
+    // Strategy 2: Try removing spaces entirely
+    const noSpaceName = cardName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const noSpacePath = `${basePath}${paddedNum}-${noSpaceName}.png`;
+    
+    // Strategy 3: Try with just the first word
+    const firstWord = cardName.toLowerCase().split(/\s+/)[0];
+    const firstWordPath = `${basePath}${paddedNum}-${firstWord}.png`;
+    
+    // Return first strategy that hasn't been tried yet
+    for (const fallback of [cleanPath, noSpacePath, firstWordPath]) {
+        if (fallback !== originalSrc && !failedAttempts.has(fallback)) {
+            return fallback;
+        }
+    }
+    
+    return null;
+}
+
 /**
  * Initialize the lazy loading system
  */
@@ -77,11 +124,32 @@ export function createLazyCardImage(src, alt, className = '', onError = null) {
     // Add data attribute for the actual source
     img.dataset.src = src;
     
-    // Set up error handling
+    // Set up enhanced error handling with comprehensive logging
     const errorHandler = onError || ((errorImg) => {
+        // Log detailed error information
+        const cardName = alt || 'Unknown Card';
+        console.error(`❌ CARD LOADING FAILED: ${cardName}`);
+        console.error(`   - Attempted path: ${src}`);
+        console.error(`   - Timestamp: ${new Date().toISOString()}`);
+        
+        // Try fallback strategies before using fallback image
+        const fallbackSrc = tryFallbackStrategies(src, cardName);
+        if (fallbackSrc && fallbackSrc !== src) {
+            console.warn(`🔄 Attempting fallback: ${fallbackSrc}`);
+            errorImg.dataset.src = fallbackSrc;
+            loadCardImage(errorImg);
+            return;
+        }
+        
+        // Use fallback image as last resort
         errorImg.src = 'assets/fallback.png';
         errorImg.className = errorImg.className.replace('loading', 'error');
-        console.warn(`⚠️ Failed to load card image: ${src}`);
+        console.warn(`⚠️ Using fallback image for: ${cardName}`);
+        
+        // Log to game log if available
+        if (typeof logMessage === 'function') {
+            logMessage(`Failed to load card image: ${cardName}`, 'error');
+        }
     });
     
     img.onerror = () => errorHandler(img);
