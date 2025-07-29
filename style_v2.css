@@ -245,14 +245,14 @@ body {
 @keyframes holo-shimmer {
   0% { 
     background-position: 0px 0px;
-    opacity: 0.02;
+    opacity: 0.25;
   }
   50% { 
-    opacity: 0.06;
+    opacity: 0.35;
   }
   100% { 
     background-position: 40px 40px;
-    opacity: 0.02;
+    opacity: 0.25;
   }
 }
 
