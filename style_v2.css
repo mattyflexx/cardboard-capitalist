@@ -659,3 +659,102 @@ body {
     grid-template-columns: repeat(2, 1fr) !important;
   }
 }
+
+/* --- LAZY LOADING STYLES --- */
+
+/* Base lazy image styling */
+.lazy-card-image {
+    transition: opacity 0.3s ease, filter 0.3s ease;
+    background-color: #2a2a2a;
+}
+
+/* Loading state - show placeholder with animation */
+.lazy-card-image.loading {
+    opacity: 0.7;
+    filter: blur(2px);
+    background: linear-gradient(
+        90deg,
+        #2a2a2a 25%,
+        #3a3a3a 50%,
+        #2a2a2a 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+/* Loaded state - smooth transition to full visibility */
+.lazy-card-image.loaded {
+    opacity: 1;
+    filter: none;
+    background: none;
+}
+
+/* Error state - maintain visibility but indicate error */
+.lazy-card-image.error {
+    opacity: 0.8;
+    filter: grayscale(100%) brightness(0.7);
+    background: linear-gradient(
+        45deg,
+        #4a1a1a 25%,
+        #3a1a1a 25%,
+        #3a1a1a 50%,
+        #4a1a1a 50%,
+        #4a1a1a 75%,
+        #3a1a1a 75%
+    );
+    background-size: 8px 8px;
+}
+
+/* Shimmer animation for loading state */
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Loading pulse animation as alternative */
+@keyframes loadingPulse {
+    0%, 100% {
+        opacity: 0.7;
+    }
+    50% {
+        opacity: 0.9;
+    }
+}
+
+/* High priority images (use pulse instead of shimmer) */
+.lazy-card-image.loading.priority {
+    animation: loadingPulse 1s infinite ease-in-out;
+    background: #3a3a3a;
+}
+
+/* Fade in effect for newly loaded images */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.lazy-card-image.loaded {
+    animation: fadeIn 0.4s ease-out;
+}
+
+/* Reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+    .lazy-card-image {
+        transition: none;
+        animation: none;
+    }
+    
+    .lazy-card-image.loading {
+        background: #3a3a3a;
+    }
+}
