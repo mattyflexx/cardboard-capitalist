@@ -99,7 +99,12 @@ function renderMainView(viewName) {
         case 'pack-opening':
             if (gameState.ui.selectedPack) {
                 DOM.viewTitle.textContent = 'Opening Pack';
-                renderPackOpeningView(DOM.mainView, gameState.ui.selectedPack);
+                // Use animated view for Doodlemon (Genesis) packs
+                if (gameState.ui.selectedPack === 'genesis') {
+                    renderDoodlemonPackOpeningView(DOM.mainView, gameState.ui.selectedPack);
+                } else {
+                    renderPackOpeningView(DOM.mainView, gameState.ui.selectedPack);
+                }
             } else {
                 renderMainView('store');
             }
@@ -382,6 +387,422 @@ function renderPackOpeningView(container, setName) {
       renderMainView('collection'); // Return to collection after opening
     });
   }
+}
+
+// Animated Pack Opening View for Doodlemon Packs
+function renderDoodlemonPackOpeningView(container, setName) {
+  const set = TCG_SETS[setName];
+  if (!set) return;
+  
+  const packsAvailable = gameState.player.sealedInventory[setName] || 0;
+  if (packsAvailable <= 0) {
+    renderPackOpeningView(container, setName); // Fallback to simple view
+    return;
+  }
+
+  // Pack opening state management
+  const packOpeningState = {
+    stage: 'initialization', // 'initialization', 'ripping', 'revealing', 'summary'
+    cards: [],
+    currentCardIndex: 0,
+    revealedCards: []
+  };
+
+  container.innerHTML = ''; // Clear container
+  
+  // Create main pack opening container
+  const packContainer = document.createElement('div');
+  packContainer.className = 'pack-opening-container flex flex-col items-center justify-center min-h-full bg-gradient-to-b from-gray-900 to-gray-800 p-8';
+  packContainer.id = 'pack-opening-container';
+  
+  // Initialize Stage 1: Scene Initialization
+  renderPackStage1(packContainer, set, packOpeningState);
+  
+  container.appendChild(packContainer);
+}
+
+// Stage 1: Scene Initialization - Centered sealed pack, await click
+function renderPackStage1(container, set, state) {
+  container.innerHTML = `
+    <div class="pack-scene text-center">
+      <h2 class="text-3xl font-bold text-white mb-8">Ready to open your ${set.name} pack?</h2>
+      
+      <!-- Sealed Pack Display -->
+      <div class="sealed-pack-container mb-8">
+        <div class="pack-wrapper relative transition-transform duration-300 hover:scale-105">
+          <img src="${set.pack.img}" 
+               alt="${set.name} Pack" 
+               class="pack-image w-48 h-72 mx-auto object-contain drop-shadow-2xl"
+               onerror="this.style.display='none'">
+          <div class="pack-glow absolute inset-0 bg-blue-400 opacity-20 blur-lg rounded-lg"></div>
+        </div>
+      </div>
+      
+      <!-- Start Button -->
+      <button id="start-pack-opening" 
+              class="start-btn bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-4 px-8 rounded-lg text-xl shadow-lg transform transition-all duration-200 hover:scale-105 hover:shadow-xl">
+        <span class="flex items-center gap-3">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"></path>
+          </svg>
+          Rip Open Pack!
+        </span>
+      </button>
+      
+      <p class="text-gray-400 text-sm mt-4">Click to start the pack opening sequence</p>
+    </div>
+  `;
+
+  // Use setTimeout to ensure DOM element exists before adding event listener
+  setTimeout(() => {
+    const startBtn = document.getElementById('start-pack-opening');
+    if (startBtn) {
+      startBtn.addEventListener('click', () => {
+        // Generate pack contents (use existing logic)
+        const packCards = generatePackCards(set);
+        state.cards = packCards;
+        state.stage = 'ripping';
+        
+        // Play pack rip SFX (stub)
+        playPackTearSFX();
+        
+        // Move to Stage 2
+        renderPackStage2(container, set, state);
+      });
+    }
+  }, 0);
+}
+
+// Stage 2: Pack Rip Animation - Animate tear and reveal card stack  
+function renderPackStage2(container, set, state) {
+  container.innerHTML = `
+    <div class="pack-rip-scene text-center">
+      <h2 class="text-2xl font-bold text-white mb-8">Opening pack...</h2>
+      
+      <!-- Pack Ripping Animation -->
+      <div class="pack-rip-container mb-8 relative">
+        <div class="pack-wrapper ripping-animation">
+          <img src="${set.pack.img}" 
+               alt="${set.name} Pack" 
+               class="pack-image w-48 h-72 mx-auto object-contain opacity-75 transform scale-110"
+               style="filter: blur(1px);">
+          
+          <!-- Rip Effect Overlay -->
+          <div class="rip-effects absolute inset-0 flex items-center justify-center">
+            <div class="rip-lines">
+              <div class="rip-line bg-white opacity-80 w-32 h-1 transform rotate-12 animate-pulse"></div>
+              <div class="rip-line bg-white opacity-60 w-24 h-1 transform -rotate-6 animate-pulse mt-2"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <p class="text-yellow-400 font-semibold animate-pulse">Tearing wrapper...</p>
+    </div>
+  `;
+
+  // Simulate pack rip animation duration
+  setTimeout(() => {
+    state.stage = 'revealing';
+    renderPackStage3(container, set, state);
+  }, 2000); // 2 second rip animation
+}
+
+// Stage 3: Card Reveal Loop - Click stack to reveal cards one by one
+function renderPackStage3(container, set, state) {
+  const remainingCards = state.cards.length - state.currentCardIndex;
+  const currentCard = state.currentCardIndex < state.cards.length ? state.cards[state.currentCardIndex] : null;
+  
+  if (!currentCard) {
+    // All cards revealed, move to summary
+    state.stage = 'summary';
+    renderPackStage4(container, set, state, setName);
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="card-reveal-scene text-center">
+      <h2 class="text-2xl font-bold text-white mb-4">Revealing cards...</h2>
+      <p class="text-gray-300 mb-8">${remainingCards} cards remaining</p>
+      
+      <!-- Card Stack Display -->
+      <div class="card-stack-container mb-8 relative">
+        <div class="card-stack cursor-pointer transform transition-transform duration-200 hover:scale-105" id="card-stack">
+          <!-- Card Back Stack -->
+          <div class="card-back-stack relative">
+            <img src="${ASSETS.cardBack}" 
+                 alt="Card Back" 
+                 class="card-back w-32 h-44 mx-auto object-contain drop-shadow-lg">
+            
+            <!-- Stack effect with multiple card backs offset -->
+            <img src="${ASSETS.cardBack}" 
+                 alt="Card Back" 
+                 class="card-back w-32 h-44 mx-auto object-contain absolute top-1 left-1 -z-10 opacity-90">
+            <img src="${ASSETS.cardBack}" 
+                 alt="Card Back" 
+                 class="card-back w-32 h-44 mx-auto object-contain absolute top-2 left-2 -z-20 opacity-80">
+          </div>
+          
+          <!-- Cards remaining indicator -->
+          <div class="cards-remaining-badge absolute -top-2 -right-2 bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold">
+            ${remainingCards}
+          </div>
+        </div>
+      </div>
+      
+      <!-- Card Reveal Area -->
+      <div class="card-reveal-area mb-8 min-h-[200px] flex items-center justify-center" id="card-reveal-area">
+        <p class="text-gray-400">Click the card stack to reveal the next card!</p>
+      </div>
+      
+      <!-- Summary Area for Revealed Cards -->
+      <div class="revealed-cards-summary" id="revealed-cards-summary">
+        <h3 class="text-lg font-bold text-white mb-4">Cards Revealed:</h3>
+        <div class="revealed-cards-grid grid grid-cols-6 gap-2 max-w-4xl mx-auto">
+          ${state.revealedCards.map(card => `
+            <div class="revealed-card-thumbnail">
+              <img src="${card.img}" 
+                   alt="${card.name}" 
+                   class="w-12 h-16 object-contain rounded border border-gray-600"
+                   onerror="this.style.display='none'">
+              <p class="text-xs text-gray-400 mt-1 truncate">${card.name}</p>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Add click handler for card stack using setTimeout to ensure DOM element exists
+  setTimeout(() => {
+    const cardStack = document.getElementById('card-stack');
+    if (cardStack) {
+      cardStack.addEventListener('click', () => {
+        revealNextCard(container, set, state, currentCard);
+      });
+    }
+  }, 0);
+}
+
+// Reveal individual card with animation and rarity effects
+function revealNextCard(container, set, state, card) {
+  const revealArea = document.getElementById('card-reveal-area');
+  
+  // Animate card moving from stack to center
+  revealArea.innerHTML = `
+    <div class="revealing-card-container">
+      <div class="card-flip-animation">
+        <!-- Front (card back) -->
+        <div class="card-face card-back-face">
+          <img src="${ASSETS.cardBack}" 
+               alt="Card Back" 
+               class="w-32 h-44 object-contain">
+        </div>
+        
+        <!-- Back (actual card) -->
+        <div class="card-face card-front-face">
+          <img src="${card.img}" 
+               alt="${card.name}" 
+               class="w-32 h-44 object-contain"
+               onerror="this.style.display='none'">
+        </div>
+      </div>
+      
+      <!-- Card Info -->
+      <div class="card-info mt-4">
+        <h3 class="text-xl font-bold text-white">${card.name}</h3>
+        <p class="text-sm ${getRarityColorClass(card.rarity)}">${card.rarity}</p>
+      </div>
+    </div>
+  `;
+
+  // Play card flip SFX (stub)
+  playCardFlipSFX();
+  
+  // Trigger rarity-based effects
+  triggerRarityEffects(card);
+  
+  // Add card to revealed cards
+  state.revealedCards.push(card);
+  state.currentCardIndex++;
+  
+  // Add card to collection (using existing logic)
+  addCardToCollection(card);
+  
+  // Auto-advance after showing card for a moment
+  setTimeout(() => {
+    renderPackStage3(container, set, state);
+  }, 2500); // Show each card for 2.5 seconds
+}
+
+// Stage 4: Final Summary View - Display all cards, continue button
+function renderPackStage4(container, set, state, setName) {
+  container.innerHTML = `
+    <div class="pack-summary-scene text-center">
+      <h2 class="text-3xl font-bold text-white mb-8">Pack Opening Complete!</h2>
+      
+      <!-- All Cards Display -->
+      <div class="pack-results mb-8">
+        <h3 class="text-xl font-bold text-white mb-6">Your ${set.name} Pack Contents:</h3>
+        
+        <div class="cards-fan-display grid grid-cols-4 md:grid-cols-6 lg:grid-cols-11 gap-2 max-w-7xl mx-auto">
+          ${state.cards.map(card => `
+            <div class="pack-card-result transform transition-transform duration-200 hover:scale-110 hover:z-10 relative">
+              <img src="${card.img}" 
+                   alt="${card.name}" 
+                   class="w-full h-auto object-contain rounded-lg shadow-lg"
+                   onerror="this.style.display='none'">
+              <div class="card-overlay absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-20 rounded-lg transition-all duration-200">
+                <div class="card-info-popup hidden absolute bottom-full left-1/2 transform -translate-x-1/2 bg-gray-900 text-white p-2 rounded text-xs whitespace-nowrap z-20">
+                  <p class="font-bold">${card.name}</p>
+                  <p class="${getRarityColorClass(card.rarity)}">${card.rarity}</p>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      
+      <!-- Pack Statistics -->
+      <div class="pack-stats mb-8 bg-gray-800 rounded-lg p-6 max-w-2xl mx-auto">
+        <h4 class="text-lg font-bold text-white mb-4">Pack Breakdown:</h4>
+        <div class="stats-grid grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
+          ${getPackBreakdown(state.cards)}
+        </div>
+      </div>
+      
+      <!-- Continue Button -->
+      <button id="continue-pack-opening" 
+              class="continue-btn bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg shadow-lg transform transition-all duration-200 hover:scale-105">
+        <span class="flex items-center gap-3">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+          </svg>
+          Continue to Collection
+        </span>
+      </button>
+    </div>
+  `;
+
+  // Add continue button handler using setTimeout to ensure DOM element exists
+  setTimeout(() => {
+    const continueBtn = document.getElementById('continue-pack-opening');
+    if (continueBtn) {
+      continueBtn.addEventListener('click', () => {
+        // Animate cards off screen (stub)
+        animateCardsOff();
+        
+        // Update pack inventory
+        gameState.player.sealedInventory[setName]--;
+        
+        // Log pack opening completion
+        logMessage(`Opened a ${set.name} pack! Got ${state.cards.length} cards.`, "success");
+        state.cards.forEach(card => logMessage(`• ${card.name} (${card.rarity})`, "info"));
+        
+        // Update stats and UI
+        updateStats('packsOpened', 1);
+        updateStats('cardsAcquired', state.cards.length);
+        calculateNetWorth();
+        updateUI();
+        
+        // Return to collection
+        renderMainView('collection');
+      });
+    }
+  }, 0);
+}
+
+// Helper Functions for Pack Opening Animations
+
+function generatePackCards(set) {
+  // Use existing pack generation logic
+  const packCards = [];
+  const rarityWeights = {'Common': 70, 'Uncommon': 20, 'Holo Rare': 8, 'Alternate Art': 1.5, 'Chase': 0.5};
+  
+  for (let i = 0; i < 11; i++) {
+    const rarity = weightedRandomChoice(rarityWeights);
+    const availableCards = set.cards.filter(c => c.rarity === rarity);
+    if (availableCards.length > 0) {
+      const randomCard = availableCards[Math.floor(Math.random() * availableCards.length)];
+      packCards.push(randomCard);
+    }
+  }
+  
+  return packCards;
+}
+
+function getRarityColorClass(rarity) {
+  const rarityColors = {
+    'Common': 'text-gray-400',
+    'Uncommon': 'text-green-400', 
+    'Holo Rare': 'text-purple-400',
+    'Alternate Art': 'text-yellow-400',
+    'Chase': 'text-red-400'
+  };
+  return rarityColors[rarity] || 'text-gray-400';
+}
+
+function getPackBreakdown(cards) {
+  const breakdown = {};
+  cards.forEach(card => {
+    breakdown[card.rarity] = (breakdown[card.rarity] || 0) + 1;
+  });
+  
+  return Object.entries(breakdown).map(([rarity, count]) => `
+    <div class="stat-item">
+      <div class="stat-value text-xl font-bold ${getRarityColorClass(rarity)}">${count}</div>
+      <div class="stat-label text-sm text-gray-400">${rarity}</div>
+    </div>
+  `).join('');
+}
+
+function triggerRarityEffects(card) {
+  // TODO: Replace with actual animation/effect implementations
+  switch(card.rarity) {
+    case 'Holo Rare':
+      triggerTier1Effect(); // Shimmer/confetti, quick burst, positive SFX
+      break;
+    case 'Chase':
+    case 'Alternate Art':
+      triggerTier2Effect(); // Flash, beams, fireworks, major SFX
+      break;
+    default:
+      // No effect for Common/Uncommon
+      break;
+  }
+}
+
+// Stub Functions for Animation and Sound Effects
+// TODO: Replace these with actual implementations
+
+function playPackTearSFX() {
+  console.log('🔊 Playing pack tear sound effect');
+  // TODO: Implement actual sound effect
+}
+
+function playCardFlipSFX() {
+  console.log('🔊 Playing card flip sound effect');
+  // TODO: Implement actual sound effect
+}
+
+function triggerTier1Effect() {
+  console.log('✨ Triggering Tier 1 effect (HoloRare): shimmer/confetti, quick burst, positive SFX');
+  // TODO: Implement shimmer/confetti particle effects
+  // TODO: Implement quick burst animation
+  // TODO: Implement positive sound effect
+}
+
+function triggerTier2Effect() {
+  console.log('🎆 Triggering Tier 2 effect (Chase/AlternateArt): flash, beams, fireworks, major SFX');
+  // TODO: Implement flash animation
+  // TODO: Implement beam effects  
+  // TODO: Implement fireworks particle system
+  // TODO: Implement major sound effect
+}
+
+function animateCardsOff() {
+  console.log('🎬 Animating cards off screen');
+  // TODO: Implement card exit animations
 }
 
 function renderCardManagementView(container, cardId, instanceUid) {
