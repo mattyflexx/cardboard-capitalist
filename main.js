@@ -1,8 +1,3 @@
-function initializeGame() {
-    console.log("Game initialization starting...");
-    // Rest of your function...
-}
-
 import { TCG_SETS, ASSETS, LAYOUT_BLUEPRINTS, getAllDoodlemonForGame } from './config.js';
 import { gameState, updateGameState, calculateNetWorth, getCardValue, determineCardCondition, updateMarket, initializeStats, updateStats, ACHIEVEMENTS, CARD_CONDITIONS } from './state.js';
 import { initializeLazyLoading, createLazyCardImage, preloadCardImages } from './assetLoader.js';
