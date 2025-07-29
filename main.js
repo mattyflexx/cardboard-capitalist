@@ -29,7 +29,7 @@ function initializeGame() {
     // Initialize lazy loading system
     initializeLazyLoading();
     
-    // Generate image paths for all standard cards.
+    // Generate image paths for all standard cards with robust fallback system.
     TCG_SETS.genesis.cards.forEach(card => {
         if (!card.img) {
             const paddedDexNum = String(card.doodledexNum).padStart(3, '0');
@@ -37,6 +37,9 @@ function initializeGame() {
             // Convert the card name to lowercase and replace spaces with hyphens to match filenames.
             const formattedName = card.name.toLowerCase().replace(/\s+/g, '-');
             card.img = `${ASSET_PATH}${paddedDexNum}-${formattedName}.png`;
+            
+            // Store original formatted name for fallback logging
+            card.originalFormattedName = formattedName;
         }
     });
 
@@ -50,6 +53,9 @@ function initializeGame() {
         addCardToCollection(TCG_SETS.genesis.cards.find(c => c.id === 'GS-IA1'));
         logMessage("Welcome to Cardboard Capitalist! Your trading card journey begins now.", "system");
     } else {
+        // Clean up any expired market events from previous sessions
+        cleanupExpiredMarketEvents();
+        
         // Preload images for cards in collection
         const collectionImages = Object.values(gameState.player.collection)
             .map(cardData => cardData.cardInfo.img)
@@ -142,6 +148,12 @@ function renderCollectionView(container) {
         <option value="name">Name</option>
         <option value="rarity">Rarity</option>
         <option value="value">Value</option>
+        <option value="date_acquired">Date Acquired</option>
+        <option value="condition">Condition</option>
+      </select>
+      <select id="collection-order" class="bg-gray-700 text-white rounded px-2 py-1 text-sm ml-2">
+        <option value="asc">Ascending</option>
+        <option value="desc">Descending</option>
       </select>
     </div>
     <div class="flex items-center ml-4">
@@ -154,6 +166,17 @@ function renderCollectionView(container) {
         <option value="Alternate Art">Alternate Art</option>
         <option value="Insert Art">Insert Art</option>
         <option value="Chase">Chase</option>
+      </select>
+    </div>
+    <div class="flex items-center ml-4">
+      <label class="mr-2 text-sm">Condition:</label>
+      <select id="collection-filter-condition" class="bg-gray-700 text-white rounded px-2 py-1 text-sm">
+        <option value="all">All Conditions</option>
+        <option value="Mint">Mint</option>
+        <option value="Near Mint">Near Mint</option>
+        <option value="Excellent">Excellent</option>
+        <option value="Good">Good</option>
+        <option value="Poor">Poor</option>
       </select>
     </div>
   `;
@@ -187,14 +210,18 @@ function renderCollectionView(container) {
   container.appendChild(collectionDiv);
   
   document.getElementById('collection-sort').addEventListener('change', () => renderFilteredCollection(document.getElementById('collection-grid')));
+  document.getElementById('collection-order').addEventListener('change', () => renderFilteredCollection(document.getElementById('collection-grid')));
   document.getElementById('collection-filter-rarity').addEventListener('change', () => renderFilteredCollection(document.getElementById('collection-grid')));
+  document.getElementById('collection-filter-condition').addEventListener('change', () => renderFilteredCollection(document.getElementById('collection-grid')));
 }
 
 function renderFilteredCollection(grid) {
   grid.innerHTML = '';
   
   const sortBy = document.getElementById('collection-sort')?.value || 'id';
+  const sortOrder = document.getElementById('collection-order')?.value || 'asc';
   const rarityFilter = document.getElementById('collection-filter-rarity')?.value || 'all';
+  const conditionFilter = document.getElementById('collection-filter-condition')?.value || 'all';
   
   let allInstances = [];
   Object.values(gameState.player.collection).forEach(cardData => {
@@ -203,20 +230,44 @@ function renderFilteredCollection(grid) {
       });
   });
 
+  // Apply filters
   if (rarityFilter !== 'all') {
     allInstances = allInstances.filter(item => item.cardInfo.rarity === rarityFilter);
   }
   
+  if (conditionFilter !== 'all') {
+    allInstances = allInstances.filter(item => item.instance.condition === conditionFilter);
+  }
+  
+  // Enhanced sorting
   allInstances.sort((a, b) => {
     const cardA = a.cardInfo;
     const cardB = b.cardInfo;
+    let comparison = 0;
     
     switch(sortBy) {
-      case 'name': return cardA.name.localeCompare(cardB.name);
-      case 'rarity': return cardA.rarity.localeCompare(cardB.rarity);
-      case 'value': return getCardValue(cardB, b.instance) - getCardValue(cardA, a.instance);
-      default: return cardA.id.localeCompare(cardB.id);
+      case 'name': 
+        comparison = cardA.name.localeCompare(cardB.name);
+        break;
+      case 'rarity': 
+        const rarityOrder = ['Common', 'Uncommon', 'Holo Rare', 'Alternate Art', 'Insert Art', 'Chase'];
+        comparison = rarityOrder.indexOf(cardA.rarity) - rarityOrder.indexOf(cardB.rarity);
+        break;
+      case 'value': 
+        comparison = getCardValue(cardB, b.instance) - getCardValue(cardA, a.instance);
+        break;
+      case 'date_acquired':
+        comparison = new Date(a.instance.dateAcquired) - new Date(b.instance.dateAcquired);
+        break;
+      case 'condition':
+        const conditionOrder = ['Poor', 'Good', 'Excellent', 'Near Mint', 'Mint'];
+        comparison = conditionOrder.indexOf(a.instance.condition) - conditionOrder.indexOf(b.instance.condition);
+        break;
+      default: 
+        comparison = cardA.id.localeCompare(cardB.id);
     }
+    
+    return sortOrder === 'desc' ? -comparison : comparison;
   });
   
   if (allInstances.length === 0) {
@@ -1126,9 +1177,35 @@ function renderCardManagementView(container, cardId, instanceUid) {
 
 function buildCardElement(cardInfo, instance) {
     const cardElement = document.createElement('div');
-    cardElement.className = 'card-container';
+    cardElement.className = 'card-container relative';
     cardElement.dataset.cardId = cardInfo.id;
     if (instance) cardElement.dataset.instanceUid = instance.uid;
+
+    // Enhanced tooltip data
+    const cardValue = instance ? getCardValue(cardInfo, instance) : 0;
+    const condition = instance ? instance.condition : 'Unknown';
+    const dateAcquired = instance ? new Date(instance.dateAcquired).toLocaleDateString() : 'Unknown';
+    
+    // Create tooltip content
+    const tooltipContent = `
+        <div class="text-sm">
+            <div class="font-bold text-white">${cardInfo.name}</div>
+            <div class="text-gray-300">${cardInfo.rarity}</div>
+            <div class="text-green-400">Value: $${cardValue.toFixed(2)}</div>
+            <div class="text-blue-400">Condition: ${condition}</div>
+            <div class="text-gray-400">Acquired: ${dateAcquired}</div>
+            ${cardInfo.lore ? `<div class="text-gray-300 mt-2 max-w-xs">${cardInfo.lore}</div>` : ''}
+        </div>
+    `;
+    
+    // Add tooltip attributes
+    cardElement.setAttribute('data-tooltip', tooltipContent);
+    cardElement.setAttribute('title', `${cardInfo.name} - ${cardInfo.rarity} - $${cardValue.toFixed(2)}`);
+    
+    // Add hover effects
+    cardElement.addEventListener('mouseenter', showCardTooltip);
+    cardElement.addEventListener('mouseleave', hideCardTooltip);
+    cardElement.addEventListener('mousemove', moveCardTooltip);
 
     // Handle Insert Art cards with special styling
     if (cardInfo.layout === 'Insert-Art') {
@@ -1528,8 +1605,15 @@ function nextDay() {
     if (newAchievements.length > 0) {
         newAchievements.forEach(achievement => {
             logMessage(`Achievement Unlocked: ${achievement.name}`, "success");
-            if (achievement.reward?.cash) logMessage(`Reward: $${achievement.reward.cash} added to your account`, "success");
-            if (achievement.reward?.supplies) Object.entries(achievement.reward.supplies).forEach(([item, amount]) => logMessage(`Reward: ${amount} ${item} added to your supplies`, "success"));
+            showToastNotification(`🏆 ${achievement.name}`, "achievement", 6000);
+            if (achievement.reward?.cash) {
+                logMessage(`Reward: $${achievement.reward.cash} added to your account`, "success");
+                showToastNotification(`💰 +$${achievement.reward.cash}`, "success", 4000);
+            }
+            if (achievement.reward?.supplies) Object.entries(achievement.reward.supplies).forEach(([item, amount]) => {
+                logMessage(`Reward: ${amount} ${item} added to your supplies`, "success");
+                showToastNotification(`📦 +${amount} ${item}`, "success", 4000);
+            });
         });
     }
     
@@ -1540,12 +1624,40 @@ function nextDay() {
 }
 
 function processMarketEvents() {
-    gameState.market.events = gameState.market.events.filter(event => !(event.year === gameState.date.year && event.expires <= gameState.date.day));
+    // Filter out expired events with proper year transition handling
+    gameState.market.events = gameState.market.events.filter(event => {
+        // Event is expired if:
+        // 1. Current year is greater than event year, OR
+        // 2. Same year but current day is greater than expiration day
+        const isExpired = (gameState.date.year > event.year) || 
+                         (gameState.date.year === event.year && gameState.date.day > event.expires);
+        
+        if (isExpired) {
+            console.log(`📅 Removing expired market event: ${event.name} (Year ${event.year}, Day ${event.expires})`);
+        }
+        
+        return !isExpired;
+    });
+    
+    // Warn about events ending tomorrow
     gameState.market.events.forEach(event => {
         if (event.year === gameState.date.year && event.expires === gameState.date.day + 1) {
             logMessage(`Market event "${event.name}" is ending tomorrow.`, "info");
         }
     });
+}
+
+// Cleanup function to remove lingering expired events at game session start
+function cleanupExpiredMarketEvents() {
+    const initialCount = gameState.market.events.length;
+    processMarketEvents(); // This will remove expired events
+    const finalCount = gameState.market.events.length;
+    
+    if (initialCount > finalCount) {
+        const removedCount = initialCount - finalCount;
+        console.log(`🧹 Cleaned up ${removedCount} expired market event(s) at game start`);
+        logMessage(`Cleaned up ${removedCount} expired market event(s).`, "info");
+    }
 }
 
 function generateDailyEvent() {
@@ -1687,13 +1799,42 @@ function checkHighestValueCard() {
 }
 
 function checkAchievements() {
+  // Ensure achievements object is always initialized
+  if (!gameState.achievements) {
+    gameState.achievements = {};
+    console.log("🔧 Initialized missing achievements object");
+  }
+  
   let newAchievements = [];
   Object.values(ACHIEVEMENTS).forEach(achievement => {
-    if (!achievement.unlocked && achievement.requirement(gameState)) {
+    // Check if achievement is already unlocked in gameState
+    const isUnlocked = gameState.achievements[achievement.id] || achievement.unlocked;
+    
+    if (!isUnlocked && achievement.requirement(gameState)) {
+      // Mark as unlocked in both places for consistency
       achievement.unlocked = true;
+      gameState.achievements[achievement.id] = true;
+      
       newAchievements.push(achievement);
-      if (achievement.reward?.cash) gameState.player.cash += achievement.reward.cash;
-      if (achievement.reward?.supplies) Object.entries(achievement.reward.supplies).forEach(([item, amount]) => gameState.player.supplies[item] += amount);
+      
+      // Apply rewards with error handling
+      try {
+        if (achievement.reward?.cash) {
+          gameState.player.cash += achievement.reward.cash;
+          console.log(`💰 Achievement reward: +$${achievement.reward.cash} for "${achievement.name}"`);
+        }
+        if (achievement.reward?.supplies) {
+          Object.entries(achievement.reward.supplies).forEach(([item, amount]) => {
+            if (gameState.player.supplies[item] !== undefined) {
+              gameState.player.supplies[item] += amount;
+              console.log(`📦 Achievement reward: +${amount} ${item} for "${achievement.name}"`);
+            }
+          });
+        }
+      } catch (error) {
+        console.error(`❌ Error applying achievement reward for "${achievement.name}":`, error);
+      }
+      
       updateStats('achievementsUnlocked', 1);
     }
   });
@@ -1839,6 +1980,98 @@ function setupNavigation() {
     });
 }
 
+// Enhanced notification system
+const notifications = [];
+
+function showToastNotification(message, type = 'info', duration = 4000) {
+    const toast = document.createElement('div');
+    toast.className = `fixed top-4 right-4 z-[2000] px-6 py-3 rounded-lg shadow-lg transition-all duration-300 transform translate-x-full`;
+    
+    // Style based on type
+    const styles = {
+        success: 'bg-green-600 text-white',
+        error: 'bg-red-600 text-white', 
+        warning: 'bg-yellow-600 text-black',
+        info: 'bg-blue-600 text-white',
+        achievement: 'bg-purple-600 text-white'
+    };
+    
+    toast.className += ` ${styles[type] || styles.info}`;
+    
+    // Add icon based on type
+    const icons = {
+        success: '✅',
+        error: '❌', 
+        warning: '⚠️',
+        info: 'ℹ️',
+        achievement: '🏆'
+    };
+    
+    toast.innerHTML = `
+        <div class="flex items-center gap-2">
+            <span class="text-lg">${icons[type] || icons.info}</span>
+            <span class="font-medium">${message}</span>
+        </div>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Animate in
+    setTimeout(() => {
+        toast.classList.remove('translate-x-full');
+    }, 10);
+    
+    // Stack notifications
+    const index = notifications.length;
+    notifications.push(toast);
+    toast.style.top = `${16 + (index * 80)}px`;
+    
+    // Auto remove
+    setTimeout(() => {
+        toast.classList.add('translate-x-full');
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.remove();
+                const toastIndex = notifications.indexOf(toast);
+                if (toastIndex > -1) {
+                    notifications.splice(toastIndex, 1);
+                    // Reposition remaining notifications
+                    notifications.forEach((remainingToast, i) => {
+                        remainingToast.style.top = `${16 + (i * 80)}px`;
+                    });
+                }
+            }
+        }, 300);
+    }, duration);
+}
+
+// Enhanced logMessage function with toast notifications
+const originalLogMessage = typeof logMessage !== 'undefined' ? logMessage : null;
+
+function enhancedLogMessage(message, type = "info") {
+    // Call original function if it exists
+    if (originalLogMessage) {
+        originalLogMessage(message, type);
+    } else {
+        // Fallback log display
+        const logElement = DOM.logFeed;
+        if (logElement) {
+            const logEntry = document.createElement('p');
+            logEntry.className = 'mb-2 text-sm';
+            logEntry.innerHTML = `<span class="text-gray-400">&gt;</span> ${message}`;
+            logElement.appendChild(logEntry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+    }
+    
+    // Show toast for important events
+    const toastTypes = ['achievement', 'pack', 'rare_card', 'market_event'];
+    if (toastTypes.some(t => message.toLowerCase().includes(t)) || type === 'success' || type === 'error') {
+        const toastType = message.toLowerCase().includes('achievement') ? 'achievement' : type;
+        showToastNotification(message, toastType);
+    }
+}
+
 const TUTORIAL_STEPS = [
   { id: 'welcome', title: 'Welcome to Cardboard Capitalist!', content: 'You are a trading card collector starting your journey in the world of Doodlemon TCG.', target: null, position: 'center' },
   { id: 'cash', title: 'Your Starting Cash', content: 'You start with $50. You earn more daily from your day job.', target: '#player-cash', position: 'bottom' },
@@ -1930,6 +2163,58 @@ function endTutorial() {
     
     logMessage("Tutorial completed! You're ready to start your journey.", "success");
     renderMainView('collection');
+}
+
+// Enhanced tooltip system
+let currentTooltip = null;
+
+function showCardTooltip(event) {
+    const target = event.currentTarget;
+    const tooltipContent = target.getAttribute('data-tooltip');
+    
+    if (!tooltipContent) return;
+    
+    // Remove existing tooltip
+    hideCardTooltip();
+    
+    // Create new tooltip
+    currentTooltip = document.createElement('div');
+    currentTooltip.className = 'fixed z-[3000] bg-gray-900 border border-gray-600 rounded-lg p-3 shadow-xl pointer-events-none';
+    currentTooltip.style.maxWidth = '300px';
+    currentTooltip.innerHTML = tooltipContent;
+    
+    document.body.appendChild(currentTooltip);
+    
+    // Position tooltip
+    moveCardTooltip(event);
+}
+
+function hideCardTooltip() {
+    if (currentTooltip) {
+        currentTooltip.remove();
+        currentTooltip = null;
+    }
+}
+
+function moveCardTooltip(event) {
+    if (!currentTooltip) return;
+    
+    const tooltip = currentTooltip;
+    const rect = tooltip.getBoundingClientRect();
+    
+    let x = event.clientX + 15;
+    let y = event.clientY + 15;
+    
+    // Adjust position if tooltip goes off screen
+    if (x + rect.width > window.innerWidth) {
+        x = event.clientX - rect.width - 15;
+    }
+    if (y + rect.height > window.innerHeight) {
+        y = event.clientY - rect.height - 15;
+    }
+    
+    tooltip.style.left = `${x}px`;
+    tooltip.style.top = `${y}px`;
 }
 
 if (document.readyState === 'loading') {

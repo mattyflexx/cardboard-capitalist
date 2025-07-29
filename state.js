@@ -12,6 +12,7 @@ export let gameState = {
     ui: { currentView: 'collection' },
     market: { events: [] },
     gradingQueue: [],
+    achievements: {}, // Initialize achievements object
 };
 
 export function updateGameState(newState) {
