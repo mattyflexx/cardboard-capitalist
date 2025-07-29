@@ -12,13 +12,14 @@ body {
 
 /* --- CARD VISUALS --- */
 .card-container {
-    position: relative; 
-    aspect-ratio: 5 / 7; 
+    position: relative;
+    width: 100%; /* Add this line */
+    aspect-ratio: 5 / 7;
     background-color: #222; /* Dark bg for image loading */
-    border-radius: 4%; 
-    overflow: hidden; 
+    border-radius: 4%;
+    overflow: hidden;
     display: flex;
-    justify-content: center; 
+    justify-content: center;
     align-items: center;
     box-shadow: 0 4px 10px rgba(0,0,0,0.5);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
