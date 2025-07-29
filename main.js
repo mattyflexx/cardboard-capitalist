@@ -22,9 +22,6 @@ let tutorialActive = false;
 let currentTutorialStep = 0;
 
 const ASSET_PATH = 'assets/';
-
-function initializeGame() {
-    console.log("Game is initializing...");
     
     // Initialize lazy loading system
     initializeLazyLoading();
