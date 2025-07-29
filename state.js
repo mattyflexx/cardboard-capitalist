@@ -11,7 +11,11 @@ export let gameState = {
         supplies: { sleeves: 100, toploaders: 50 },
     },
     date: { year: 1, day: 1 },
-    ui: { currentView: 'collection' },
+    ui: { 
+        currentView: 'collection',
+        selectedCard: null,
+        selectedPack: null
+    },
     market: { events: [] },
     gradingQueue: [],
     achievements: {}, // Initialize achievements object
