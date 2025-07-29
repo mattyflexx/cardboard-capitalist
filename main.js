@@ -1,5 +1,6 @@
 import { TCG_SETS, ASSETS, LAYOUT_BLUEPRINTS, getAllDoodlemonForGame } from './config.js';
 import { gameState, updateGameState, calculateNetWorth, getCardValue, determineCardCondition, updateMarket, initializeStats, updateStats, ACHIEVEMENTS, CARD_CONDITIONS } from './state.js';
+import { initializeLazyLoading, createLazyCardImage, preloadCardImages } from './assetLoader.js';
 
 const DOM = {
     mainView: document.getElementById('main-view'),
@@ -25,6 +26,9 @@ const ASSET_PATH = 'assets/';
 function initializeGame() {
     console.log("Game is initializing...");
     
+    // Initialize lazy loading system
+    initializeLazyLoading();
+    
     // Generate image paths for all standard cards.
     TCG_SETS.genesis.cards.forEach(card => {
         if (!card.img) {
@@ -45,6 +49,12 @@ function initializeGame() {
         addCardToCollection(TCG_SETS.genesis.cards.find(c => c.id === 'GS001'));
         addCardToCollection(TCG_SETS.genesis.cards.find(c => c.id === 'GS-IA1'));
         logMessage("Welcome to Cardboard Capitalist! Your trading card journey begins now.", "system");
+    } else {
+        // Preload images for cards in collection
+        const collectionImages = Object.values(gameState.player.collection)
+            .map(cardData => cardData.cardInfo.img)
+            .filter(img => img);
+        preloadCardImages(collectionImages);
     }
 
     setupNavigation();
@@ -313,23 +323,55 @@ function renderDoodleDexView(container) {
         
         dexEntry.className = `bg-gray-800 p-4 rounded-lg text-center ${isCustom ? 'border-2 border-purple-500' : ''} ${isArtDirectorEntry ? 'border-2 border-green-500' : ''}`;
         
-        // Use Art Director image if available, otherwise use game asset
-        let artUrl = allDoodlemon[doodledexNum].img;
-        if (doodledexEntry && doodledexEntry.image) {
-            artUrl = doodledexEntry.image;
+        // Create image container
+        const imageContainer = document.createElement('div');
+        imageContainer.className = 'aspect-square bg-gray-700 rounded-lg mb-2 flex items-center justify-center overflow-hidden';
+        
+        if (isOwned) {
+            // Use Art Director image if available, otherwise use game asset
+            let artUrl = allDoodlemon[doodledexNum].img;
+            if (doodledexEntry && doodledexEntry.image) {
+                artUrl = doodledexEntry.image;
+            }
+            
+            if (artUrl) {
+                // Use lazy loading for DoodleDex images
+                const dexImg = createLazyCardImage(
+                    artUrl,
+                    allDoodlemon[doodledexNum].name,
+                    'w-full h-full object-contain',
+                    function(errorImg) {
+                        errorImg.src = `${ASSET_PATH}fallback.png`;
+                        errorImg.className = errorImg.className.replace('loading', 'error');
+                    }
+                );
+                imageContainer.appendChild(dexImg);
+            } else {
+                imageContainer.innerHTML = '<span class="text-gray-500 text-2xl">?</span>';
+            }
+        } else {
+            imageContainer.innerHTML = '<span class="text-gray-500 text-2xl">?</span>';
         }
         
-        dexEntry.innerHTML = `
-            <div class="aspect-square bg-gray-700 rounded-lg mb-2 flex items-center justify-center overflow-hidden">
-                ${isOwned && artUrl ? 
-                    `<img src="${artUrl}" alt="${allDoodlemon[doodledexNum].name}" class="w-full h-full object-contain">` :
-                    `<span class="text-gray-500 text-2xl">?</span>`
-                }
-            </div>
-            <p class="text-sm ${isOwned ? 'text-white' : 'text-gray-500'}">#${String(doodledexNum).padStart(3, '0')} ${isCustom ? '🆕' : ''} ${isArtDirectorEntry ? '🎨' : ''}</p>
-            <p class="text-xs ${isOwned ? 'text-gray-300' : 'text-gray-600'}">${isOwned ? allDoodlemon[doodledexNum].name : 'Unknown'}</p>
-            ${isArtDirectorEntry ? '<p class="text-xs text-green-400">Art Director</p>' : ''}
-        `;
+        dexEntry.appendChild(imageContainer);
+        
+        // Add text content
+        const infoP1 = document.createElement('p');
+        infoP1.className = `text-sm ${isOwned ? 'text-white' : 'text-gray-500'}`;
+        infoP1.textContent = `#${String(doodledexNum).padStart(3, '0')} ${isCustom ? '🆕' : ''} ${isArtDirectorEntry ? '🎨' : ''}`;
+        dexEntry.appendChild(infoP1);
+        
+        const infoP2 = document.createElement('p');
+        infoP2.className = `text-xs ${isOwned ? 'text-gray-300' : 'text-gray-600'}`;
+        infoP2.textContent = isOwned ? allDoodlemon[doodledexNum].name : 'Unknown';
+        dexEntry.appendChild(infoP2);
+        
+        if (isArtDirectorEntry) {
+            const artDirectorP = document.createElement('p');
+            artDirectorP.className = 'text-xs text-green-400';
+            artDirectorP.textContent = 'Art Director';
+            dexEntry.appendChild(artDirectorP);
+        }
         
         grid.appendChild(dexEntry);
     });
@@ -1095,14 +1137,16 @@ function buildCardElement(cardInfo, instance) {
         const cardInner = document.createElement('div');
         cardInner.className = 'card-inner';
         
-        const artImg = document.createElement('img');
-        artImg.src = cardInfo.img || `${ASSET_PATH}fallback.png`;
-        artImg.alt = cardInfo.name;
-        artImg.className = 'card-art';
-        artImg.onerror = function() {
-            this.onerror = null;
-            this.src = `${ASSET_PATH}fallback.png`;
-        };
+        // Use lazy loading for insert art card images
+        const artImg = createLazyCardImage(
+            cardInfo.img || `${ASSET_PATH}fallback.png`,
+            cardInfo.name,
+            'card-art',
+            function(errorImg) {
+                errorImg.src = `${ASSET_PATH}fallback.png`;
+                errorImg.className = errorImg.className.replace('loading', 'error');
+            }
+        );
         cardInner.appendChild(artImg);
         
         // Use the provided .card-text-overlay CSS for insert cards
@@ -1143,17 +1187,19 @@ function buildCardElement(cardInfo, instance) {
         return cardElement;
     }
 
-    // Standard and Full-Art card handling (existing logic)
-    const artImg = document.createElement('img');
-    artImg.src = cardInfo.img || `${ASSET_PATH}fallback.png`; // Fallback to a local asset
-    artImg.alt = cardInfo.name;
-    artImg.className = 'card-art';
-    artImg.onerror = function() {
-        this.onerror=null; // Prevent infinite loops
-        this.src = `${ASSET_PATH}fallback.png`; // A generic fallback image
-    };
+    // Standard and Full-Art card handling with lazy loading
+    const artImg = createLazyCardImage(
+        cardInfo.img || `${ASSET_PATH}fallback.png`,
+        cardInfo.name,
+        'card-art',
+        function(errorImg) {
+            errorImg.src = `${ASSET_PATH}fallback.png`;
+            errorImg.className = errorImg.className.replace('loading', 'error');
+        }
+    );
     cardElement.appendChild(artImg);
 
+    // Frame images are critical assets and should load immediately
     const frameImg = document.createElement('img');
     const frameType = cardInfo.layout === 'Full-Art' ? 'fullArt' : 'standard';
     frameImg.src = ASSETS.frames[frameType];
