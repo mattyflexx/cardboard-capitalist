@@ -1322,7 +1322,6 @@ function buildCardElement(cardInfo, instance) {
         holoOverlay.className = 'card-holo-overlay full-card';
         cardElement.appendChild(holoOverlay);
     }
-
     const inspectOverlay = document.createElement('div');
     inspectOverlay.className = 'card-inspect-overlay';
     cardElement.appendChild(inspectOverlay);
