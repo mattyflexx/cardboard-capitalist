@@ -2303,3 +2303,43 @@ if (document.readyState === 'loading') {
 } else {
     initializeGame();
 }
+
+// Emergency fix for event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("Emergency event listener fix running");
+    
+    // Fix navigation buttons
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const view = this.dataset.view;
+            console.log("Navigation clicked:", view);
+            renderMainView(view);
+        });
+    });
+    
+    // Fix next day button
+    const nextDayBtn = document.getElementById('next-day-btn');
+    if (nextDayBtn) {
+        nextDayBtn.addEventListener('click', function() {
+            console.log("Next day clicked");
+            advanceDay();
+        });
+    }
+    
+    // Fix card inspection
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.card-inspect-overlay')) {
+            const cardElement = e.target.closest('.card-container');
+            if (cardElement) {
+                const cardId = cardElement.dataset.cardId;
+                const instanceUid = cardElement.dataset.instanceUid;
+                
+                if (cardId) {
+                    console.log("Card clicked:", cardId);
+                    gameState.ui.selectedCard = { cardId, instanceUid };
+                    renderMainView('card-management');
+                }
+            }
+        }
+    });
+});
