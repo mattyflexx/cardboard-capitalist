@@ -1,3 +1,9 @@
+console.log("main.js loading...");
+window.onerror = function(message, source, lineno, colno, error) {
+    console.error("Global error:", message, "at", source, "line", lineno, error);
+    return false;
+};
+
 // IMPORTS - These should be at the very top
 import { TCG_SETS, ASSETS, LAYOUT_BLUEPRINTS, getAllDoodlemonForGame, loadCustomDoodlemon, buildEvolutionChain } from './config.js';
 import { gameState, updateGameState, calculateNetWorth, getCardValue, determineCardCondition, updateMarket, initializeStats, updateStats, ACHIEVEMENTS, CARD_CONDITIONS } from './state.js';
