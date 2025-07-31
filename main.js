@@ -1,5 +1,5 @@
 // IMPORTS - These should be at the very top
-import { TCG_SETS, ASSETS, LAYOUT_BLUEPRINTS, getAllDoodlemonForGame, loadCustomDoodlemon } from './config.js';
+import { TCG_SETS, ASSETS, LAYOUT_BLUEPRINTS, getAllDoodlemonForGame, loadCustomDoodlemon, buildEvolutionChain } from './config.js';
 import { gameState, updateGameState, calculateNetWorth, getCardValue, determineCardCondition, updateMarket, initializeStats, updateStats, ACHIEVEMENTS, CARD_CONDITIONS } from './state.js';
 import { initializeLazyLoading, createLazyCardImage, preloadCardImages } from './assetLoader.js';
 
@@ -192,7 +192,6 @@ function renderCollectionView(container) {
     document.getElementById('collection-sort').addEventListener('change', () => renderFilteredCollection(document.getElementById('collection-grid')));
     document.getElementById('collection-filter-rarity').addEventListener('change', () => renderFilteredCollection(document.getElementById('collection-grid')));
 }
-
 function renderFilteredCollection(grid) {
     grid.innerHTML = '';
     
@@ -383,7 +382,6 @@ function renderDoodleDexView(container) {
     dexDiv.appendChild(grid);
     container.appendChild(dexDiv);
 }
-
 function renderPackOpeningView(container, setName) {
     const set = TCG_SETS[setName];
     if (!set) return;
@@ -551,7 +549,6 @@ function renderPackStage2(container, set, state, setName) {
         renderPackStage3(container, set, state, setName);
     }, 2000); // 2 second rip animation
 }
-
 // Stage 3: Card Reveal Loop - Click stack to reveal cards one by one
 function renderPackStage3(container, set, state, setName) {
     const remainingCards = state.cards.length - state.currentCardIndex;
@@ -604,12 +601,9 @@ function renderPackStage3(container, set, state, setName) {
             <h3 class="text-lg font-bold text-white mb-4">Cards Revealed:</h3>
             <div class="revealed-cards-grid grid grid-cols-6 gap-2 max-w-4xl mx-auto">
                 ${state.revealedCards.map(card => `
-                    <div class="revealed-card-thumbnail">
-                        <img src="${card.img}"
-                            alt="${card.name}"
-                            class="w-12 h-16 object-contain rounded border border-gray-600"
-                            onerror="this.style.display='none'">
-                                                    <p class="text-xs text-gray-400 mt-1 truncate">${card.name}</p>
+                    <div class="revealed-card-mini bg-gray-800 p-1 rounded">
+                        <div class="text-xs text-center text-white">${card.name}</div>
+                        <div class="text-xs text-center ${getRarityColor(card.rarity)}">${card.rarity}</div>
                     </div>
                 `).join('')}
             </div>
@@ -617,147 +611,193 @@ function renderPackStage3(container, set, state, setName) {
     </div>
     `;
     
-    // Add click handler for card stack using setTimeout to ensure DOM element exists
+    // Add event listener to card stack
     setTimeout(() => {
         const cardStack = document.getElementById('card-stack');
         if (cardStack) {
             cardStack.addEventListener('click', () => {
-                revealNextCard(container, set, state, currentCard, setName);
+                revealNextCard(container, set, state, setName);
             });
         }
     }, 0);
 }
 
-// Reveal individual card with animation and rarity effects
-function revealNextCard(container, set, state, card, setName) {
+
+// Helper function to reveal the next card
+function revealNextCard(container, set, state, setName) {
+    const currentCard = state.cards[state.currentCardIndex];
+    state.revealedCards.push(currentCard);
+    
+    // Add card to collection
+    addCardToCollection(currentCard);
+    
+    // Play card reveal SFX based on rarity
+    playCardRevealSFX(currentCard.rarity);
+    
+    // Update reveal area with the card
     const revealArea = document.getElementById('card-reveal-area');
-    
-    // Animate card moving from stack to center
-    revealArea.innerHTML = `
-    <div class="revealing-card-container">
-        <div class="card-flip-animation">
-            <!-- Front (card back) -->
-            <div class="card-face card-back-face">
-                <img src="${ASSETS.cardBack}"
-                    alt="Card Back"
-                    class="w-32 h-44 object-contain">
-            </div>
-            
-            <!-- Back (actual card) -->
-            <div class="card-face card-front-face">
-                <img src="${card.img}"
-                    alt="${card.name}"
-                    class="w-32 h-44 object-contain"
-                    onerror="this.style.display='none'">
-            </div>
-        </div>
+    if (revealArea) {
+        revealArea.innerHTML = '';
+        const cardElement = buildCardElement(currentCard);
+        cardElement.classList.add('revealed-card', 'animate-reveal');
+        cardElement.style.width = '200px'; // Adjust size for reveal animation
+        revealArea.appendChild(cardElement);
         
-        <!-- Card Info -->
-        <div class="card-info mt-4">
-            <h3 class="text-xl font-bold text-white">${card.name}</h3>
-            <p class="text-sm ${getRarityColorClass(card.rarity)}">${card.rarity}</p>
-        </div>
-    </div>
-    `;
+        // Show rarity flash effect
+        const rarityFlash = document.createElement('div');
+        rarityFlash.className = `rarity-flash ${getRarityFlashClass(currentCard.rarity)}`;
+        revealArea.appendChild(rarityFlash);
+    }
     
-    // Play card flip SFX (stub)
-    playCardFlipSFX();
+    // Update the summary grid
+    const summaryGrid = document.querySelector('.revealed-cards-grid');
+    if (summaryGrid) {
+        const miniCard = document.createElement('div');
+        miniCard.className = 'revealed-card-mini bg-gray-800 p-1 rounded';
+        miniCard.innerHTML = `
+            <div class="text-xs text-center text-white">${currentCard.name}</div>
+            <div class="text-xs text-center ${getRarityColor(currentCard.rarity)}">${currentCard.rarity}</div>
+        `;
+        summaryGrid.appendChild(miniCard);
+    }
     
-    // Trigger rarity-based effects
-    triggerRarityEffects(card);
-    
-    // Add card to revealed cards
-    state.revealedCards.push(card);
+    // Move to next card
     state.currentCardIndex++;
     
-    // Add card to collection (using existing logic)
-    addCardToCollection(card);
-    
-    // Auto-advance after showing card for a moment
+    // After a delay, move to next card or summary
     setTimeout(() => {
         renderPackStage3(container, set, state, setName);
-    }, 2500); // Show each card for 2.5 seconds
+    }, 1500); // 1.5 second delay before next card
 }
 
-// Stage 4: Final Summary View - Display all cards, continue button
+// Stage 4: Pack Summary - Show all cards and completion options
 function renderPackStage4(container, set, state, setName) {
+    // Remove pack from inventory
+    gameState.player.sealedInventory[setName]--;
+    
+    // Update stats
+    updateStats('packsOpened', 1);
+    updateStats('cardsAcquired', state.cards.length);
+    
+    // Check for achievements
+    checkAchievements();
+    
+    // Save game
+    saveGame();
+    
     container.innerHTML = `
     <div class="pack-summary-scene text-center">
-        <h2 class="text-3xl font-bold text-white mb-8">Pack Opening Complete!</h2>
+        <h2 class="text-3xl font-bold text-white mb-4">Pack Complete!</h2>
+        <p class="text-gray-300 mb-8">You've opened a ${set.name} pack and added ${state.cards.length} cards to your collection.</p>
         
-        <!-- All Cards Display -->
-        <div class="pack-results mb-8">
-            <h3 class="text-xl font-bold text-white mb-6">Your ${set.name} Pack Contents:</h3>
-            <div class="cards-fan-display grid grid-cols-4 md:grid-cols-6 lg:grid-cols-11 gap-2 max-w-7xl mx-auto">
+        <!-- Cards Summary -->
+        <div class="cards-summary mb-8">
+            <h3 class="text-xl font-bold text-white mb-4">Cards Obtained:</h3>
+            <div class="cards-grid grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 max-w-4xl mx-auto">
                 ${state.cards.map(card => `
-                    <div class="pack-card-result transform transition-transform duration-200 hover:scale-110 hover:z-10 relative">
-                        <img src="${card.img}"
-                            alt="${card.name}"
-                            class="w-full h-auto object-contain rounded-lg shadow-lg"
-                            onerror="this.style.display='none'">
-                        <div class="card-overlay absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-20 rounded-lg transition-all duration-200">
-                            <div class="card-info-popup hidden absolute bottom-full left-1/2 transform -translate-x-1/2 bg-gray-900 text-white p-2 rounded text-xs whitespace-nowrap z-20">
-                                <p class="font-bold">${card.name}</p>
-                                <p class="${getRarityColorClass(card.rarity)}">${card.rarity}</p>
-                            </div>
+                    <div class="card-summary-item">
+                        <div class="card-mini-container" style="width: 120px; margin: 0 auto;">
+                            ${buildCardElementHTML(card)}
+                        </div>
+                        <div class="card-info mt-2">
+                            <div class="text-sm text-white">${card.name}</div>
+                            <div class="text-xs ${getRarityColor(card.rarity)}">${card.rarity}</div>
                         </div>
                     </div>
                 `).join('')}
             </div>
         </div>
         
-        <!-- Pack Statistics -->
-        <div class="pack-stats mb-8 bg-gray-800 rounded-lg p-6 max-w-2xl mx-auto">
-            <h4 class="text-lg font-bold text-white mb-4">Pack Breakdown:</h4>
-            <div class="stats-grid grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
-                ${getPackBreakdown(state.cards)}
-            </div>
+        <!-- Action Buttons -->
+        <div class="action-buttons flex flex-wrap justify-center gap-4">
+            <button id="open-another-pack" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                Open Another Pack (${gameState.player.sealedInventory[setName] || 0} left)
+            </button>
+            <button id="go-to-collection" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                View Collection
+            </button>
+            <button id="go-to-store" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
+                Go to Store
+            </button>
         </div>
-        
-        <!-- Continue Button -->
-        <button id="continue-pack-opening"
-            class="continue-btn bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg shadow-lg transform transition-all duration-200 hover:scale-105">
-            <span class="flex items-center gap-3">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                </svg>
-                Continue to Collection
-            </span>
-        </button>
     </div>
     `;
     
-    // Add continue button handler using setTimeout to ensure DOM element exists
+    // Add event listeners
     setTimeout(() => {
-        const continueBtn = document.getElementById('continue-pack-opening');
-        if (continueBtn) {
-            continueBtn.addEventListener('click', () => {
-                // Animate cards off screen (stub)
-                animateCardsOff();
-                
-                // Update pack inventory
-                gameState.player.sealedInventory[setName]--;
-                
-                // Log pack opening completion
-                logMessage(`Opened a ${set.name} pack! Got ${state.cards.length} cards.`, "success");
-                state.cards.forEach(card => logMessage(`• ${card.name} (${card.rarity})`, "info"));
-                
-                // Update stats and UI
-                updateStats('packsOpened', 1);
-                updateStats('cardsAcquired', state.cards.length);
-                calculateNetWorth();
-                updateUI();
-                
-                // Return to collection
-                renderMainView('collection');
-            });
-        }
+        document.getElementById('open-another-pack')?.addEventListener('click', () => {
+            if (gameState.player.sealedInventory[setName] > 0) {
+                renderDoodlemonPackOpeningView(container, setName);
+            } else {
+                renderMainView('store');
+            }
+        });
+        
+        document.getElementById('go-to-collection')?.addEventListener('click', () => {
+            renderMainView('collection');
+        });
+        
+        document.getElementById('go-to-store')?.addEventListener('click', () => {
+            renderMainView('store');
+        });
     }, 0);
 }
 
-// Helper Functions for Pack Opening Animations
+// Helper function to generate HTML for a card element (simplified version for summary)
+function buildCardElementHTML(cardInfo) {
+    return `
+    <div class="card-container" style="position: relative; width: 100%; aspect-ratio: 5/7; overflow: hidden;">
+        <img src="${cardInfo.img || `${ASSET_PATH}fallback.png`}" alt="${cardInfo.name}" class="card-art" style="position: absolute; width: 80%; height: 32%; top: 7%; object-fit: cover; z-index: 1;">
+        <img src="${ASSETS.frames[cardInfo.layout === 'Full-Art' ? 'fullArt' : 'standard']}" class="card-frame" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; z-index: 2;">
+        <div class="card-text-overlay" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; z-index: 3;">
+            <div class="card-name-box" style="position: absolute; left: 10%; top: 43%; width: 80%; text-align: center; color: white; font-weight: bold; font-size: 0.7rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">
+                ${cardInfo.name}
+            </div>
+        </div>
+        ${(cardInfo.rarity === 'Holo Rare' || cardInfo.rarity === 'Chase' || cardInfo.rarity === 'Alternate Art') ? 
+            `<div class="card-holo-overlay" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: linear-gradient(125deg, transparent 0%, rgba(255,255,255,0.3) 30%, transparent 60%); background-size: 200% 200%; animation: holoShine 3s ease infinite; z-index: 4;"></div>` : ''}
+    </div>
+    `;
+}
+
+// Helper functions for card reveal effects
+function getRarityColor(rarity) {
+    switch(rarity) {
+        case 'Common': return 'text-gray-400';
+        case 'Uncommon': return 'text-green-400';
+        case 'Holo Rare': return 'text-purple-400';
+        case 'Alternate Art': return 'text-yellow-400';
+        case 'Insert Art': return 'text-blue-400';
+        case 'Chase': return 'text-red-400';
+        default: return 'text-white';
+    }
+}
+
+function getRarityFlashClass(rarity) {
+    switch(rarity) {
+        case 'Common': return 'flash-common';
+        case 'Uncommon': return 'flash-uncommon';
+        case 'Holo Rare': return 'flash-holo';
+        case 'Alternate Art': return 'flash-alt-art';
+        case 'Insert Art': return 'flash-insert';
+        case 'Chase': return 'flash-chase';
+        default: return '';
+    }
+}
+
+// Sound effect stubs (replace with actual implementation if needed)
+function playPackTearSFX() {
+    // Play pack opening sound
+    console.log("Playing pack tear sound effect");
+}
+
+function playCardRevealSFX(rarity) {
+    // Play card reveal sound based on rarity
+    console.log(`Playing ${rarity} card reveal sound effect`);
+}
+
+// Helper function to generate pack cards
 function generatePackCards(set) {
-    // Use existing pack generation logic
     const packCards = [];
     const rarityWeights = {'Common': 70, 'Uncommon': 20, 'Holo Rare': 8, 'Alternate Art': 1.5, 'Chase': 0.5};
     
@@ -781,516 +821,179 @@ function generatePackCards(set) {
     
     return packCards;
 }
-
-function getRarityColorClass(rarity) {
-    const rarityColors = {
-        'Common': 'text-gray-400',
-        'Uncommon': 'text-green-400',
-        'Holo Rare': 'text-purple-400',
-        'Alternate Art': 'text-yellow-400',
-        'Chase': 'text-red-400'
-    };
-    
-    return rarityColors[rarity] || 'text-gray-400';
-}
-
-function getPackBreakdown(cards) {
-    const breakdown = {};
-    
-    cards.forEach(card => {
-        breakdown[card.rarity] = (breakdown[card.rarity] || 0) + 1;
-    });
-    
-    return Object.entries(breakdown).map(([rarity, count]) => `
-        <div class="stat-item">
-            <div class="stat-value text-xl font-bold ${getRarityColorClass(rarity)}">${count}</div>
-            <div class="stat-label text-sm text-gray-400">${rarity}</div>
-        </div>
-    `).join('');
-}
-
-function triggerRarityEffects(card) {
-    // TODO: Replace with actual animation/effect implementations
-    switch(card.rarity) {
-        case 'Holo Rare':
-            triggerTier1Effect(); // Shimmer/confetti, quick burst, positive SFX
-            break;
-        case 'Chase':
-        case 'Alternate Art':
-            triggerTier2Effect(); // Flash, beams, fireworks, major SFX
-            break;
-        default:
-            // No effect for Common/Uncommon
-            break;
-    }
-}
-
-// Stub Functions for Animation and Sound Effects
-// TODO: Replace these with actual implementations
-function playPackTearSFX() {
-    console.log('🔊 Playing pack tear sound effect');
-    // TODO: Implement actual sound effect
-}
-
-function playCardFlipSFX() {
-    console.log('🔊 Playing card flip sound effect');
-    // TODO: Implement actual sound effect
-}
-
-function triggerTier1Effect() {
-    console.log('✨ Triggering Tier 1 effect (HoloRare): shimmer/confetti, quick burst, positive SFX');
-    // Create confetti/shimmer effect
-    createConfettiEffect();
-    // Add screen flash effect
-    createFlashEffect('holo');
-    // Add card reveal area sparkle effects
-    addSparkleToRevealArea();
-}
-
-function triggerTier2Effect() {
-    console.log('🎆 Triggering Tier 2 effect (Chase/AlternateArt): flash, beams, fireworks, major SFX');
-    // Create intense fireworks effect
-    createFireworksEffect();
-    // Add dramatic screen flash
-    createFlashEffect('chase');
-    // Add beam effects radiating from card
-    createBeamEffects();
-    // Add extra celebration particles
-    createCelebrationExplosion();
-}
-
-// Create confetti particles effect
-function createConfettiEffect() {
-    const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A'];
-    
-    for (let i = 0; i < 50; i++) {
-        const confetti = document.createElement('div');
-        confetti.className = 'confetti-particle';
-        confetti.style.cssText = `
-            position: fixed;
-            width: 6px;
-            height: 6px;
-            background-color: ${colors[Math.floor(Math.random() * colors.length)]};
-            top: ${Math.random() * 100}vh;
-            left: ${Math.random() * 100}vw;
-            z-index: 9999;
-            border-radius: 50%;
-            animation: confettiFall ${2 + Math.random() * 2}s ease-out forwards;
-            transform: rotate(${Math.random() * 360}deg);
-        `;
-        
-        document.body.appendChild(confetti);
-        
-        // Remove after animation
-        setTimeout(() => {
-            if (confetti.parentNode) {
-                confetti.parentNode.removeChild(confetti);
-            }
-        }, 4000);
-    }
-}
-
-// Create fireworks effect for chase cards
-function createFireworksEffect() {
-    const colors = ['#FF0080', '#FFD700', '#00FF80', '#8040FF', '#FF4040'];
-    
-    for (let burst = 0; burst < 3; burst++) {
-        setTimeout(() => {
-            const centerX = 50 + (Math.random() - 0.5) * 40; // Spread around center
-            const centerY = 40 + (Math.random() - 0.5) * 30;
-            
-            for (let i = 0; i < 20; i++) {
-                const particle = document.createElement('div');
-                particle.className = 'firework-particle';
-                
-                const angle = (i / 20) * Math.PI * 2;
-                const velocity = 30 + Math.random() * 20;
-                const endX = centerX + Math.cos(angle) * velocity;
-                const endY = centerY + Math.sin(angle) * velocity;
-                
-                particle.style.cssText = `
-                    position: fixed;
-                    width: 3px;
-                    height: 3px;
-                    background-color: ${colors[Math.floor(Math.random() * colors.length)]};
-                    top: ${centerY}vh;
-                    left: ${centerX}vw;
-                    z-index: 9999;
-                    border-radius: 50%;
-                    box-shadow: 0 0 6px currentColor;
-                    animation: fireworkBurst 1.5s ease-out forwards;
-                    --endX: ${endX}vw;
-                    --endY: ${endY}vh;
-                `;
-                
-                document.body.appendChild(particle);
-                
-                setTimeout(() => {
-                    if (particle.parentNode) {
-                        particle.parentNode.removeChild(particle);
-                    }
-                }, 1500);
-            }
-        }, burst * 300);
-    }
-}
-
-// Create screen flash effect
-function createFlashEffect(type) {
-    const flash = document.createElement('div');
-    flash.className = `screen-flash ${type}`;
-    
-    const flashColor = type === 'chase' ? '#FFD700' : '#E6E6FA';
-    const duration = type === 'chase' ? '0.6s' : '0.4s';
-    
-    flash.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background-color: ${flashColor};
-        opacity: 0;
-        z-index: 9998;
-        pointer-events: none;
-        animation: flashEffect ${duration} ease-out;
-    `;
-    
-    document.body.appendChild(flash);
-    
-    setTimeout(() => {
-        if (flash.parentNode) {
-            flash.parentNode.removeChild(flash);
-        }
-    }, 600);
-}
-
-// Add sparkle effect to reveal area
-function addSparkleToRevealArea() {
-    const revealArea = document.getElementById('card-reveal-area');
-    if (!revealArea) return;
-    
-    for (let i = 0; i < 15; i++) {
-        const sparkle = document.createElement('div');
-        sparkle.className = 'sparkle';
-        sparkle.style.cssText = `
-            position: absolute;
-            width: 4px;
-            height: 4px;
-            background-color: #FFD700;
-            border-radius: 50%;
-            top: ${Math.random() * 100}%;
-            left: ${Math.random() * 100}%;
-            z-index: 100;
-            animation: sparkleEffect 1.5s ease-out forwards;
-            box-shadow: 0 0 8px #FFD700;
-        `;
-        
-        revealArea.style.position = 'relative';
-        revealArea.appendChild(sparkle);
-        
-        setTimeout(() => {
-            if (sparkle.parentNode) {
-                sparkle.parentNode.removeChild(sparkle);
-            }
-        }, 1500);
-    }
-}
-
-// Create beam effects radiating from card
-function createBeamEffects() {
-    const revealArea = document.getElementById('card-reveal-area');
-    if (!revealArea) return;
-    
-    for (let i = 0; i < 8; i++) {
-        const beam = document.createElement('div');
-        beam.className = 'beam-effect';
-        const angle = (i / 8) * 360;
-        
-        beam.style.cssText = `
-            position: absolute;
-            width: 3px;
-            height: 100px;
-            background: linear-gradient(to bottom, #FFD700, transparent);
-            top: 50%;
-            left: 50%;
-            transform-origin: 0 0;
-            transform: translate(-50%, -50%) rotate(${angle}deg);
-            z-index: 99;
-            animation: beamPulse 1s ease-out forwards;
-            box-shadow: 0 0 10px #FFD700;
-        `;
-        
-        revealArea.style.position = 'relative';
-        revealArea.appendChild(beam);
-        
-        setTimeout(() => {
-            if (beam.parentNode) {
-                beam.parentNode.removeChild(beam);
-            }
-        }, 1000);
-    }
-}
-
-// Create celebration explosion for chase cards
-function createCelebrationExplosion() {
-    const colors = ['#FF1493', '#00CED1', '#FFD700', '#FF69B4', '#32CD32'];
-    
-    for (let i = 0; i < 100; i++) {
-        const particle = document.createElement('div');
-        particle.className = 'celebration-particle';
-        const size = 2 + Math.random() * 4;
-        
-        particle.style.cssText = `
-            position: fixed;
-            width: ${size}px;
-            height: ${size}px;
-            background-color: ${colors[Math.floor(Math.random() * colors.length)]};
-            top: 50vh;
-            left: 50vw;
-            z-index: 9999;
-            border-radius: 50%;
-            animation: explosionParticle ${1 + Math.random()}s ease-out forwards;
-            --randomX: ${(Math.random() - 0.5) * 200}vw;
-            --randomY: ${(Math.random() - 0.5) * 200}vh;
-        `;
-        
-        document.body.appendChild(particle);
-        
-        setTimeout(() => {
-            if (particle.parentNode) {
-                particle.parentNode.removeChild(particle);
-            }
-        }, 2000);
-    }
-}
-
-function animateCardsOff() {
-    console.log('🎬 Animating cards off screen');
-    // TODO: Implement card exit animations
-}
-
 function renderCardManagementView(container, cardId, instanceUid) {
     const cardData = gameState.player.collection[cardId];
-    if (!cardData) return;
+    if (!cardData) {
+        renderMainView('collection');
+        return;
+    }
     
-    const instance = cardData.instances.find(i => i.uid == instanceUid);
-    if (!instance) return;
+    const instance = cardData.instances.find(i => i.uid === instanceUid);
+    if (!instance) {
+        renderMainView('collection');
+        return;
+    }
     
-    const cardInfo = cardData.cardInfo;
+    const cardValue = getCardValue(cardData.cardInfo, instance);
     
-    const managementDiv = document.createElement('div');
-    managementDiv.className = 'flex flex-col md:flex-row gap-6';
+    const cardManagementDiv = document.createElement('div');
+    cardManagementDiv.className = 'flex flex-col md:flex-row gap-6';
     
-    const previewDiv = document.createElement('div');
-    previewDiv.className = 'w-full md:w-1/3';
-    previewDiv.appendChild(buildCardElement(cardInfo, instance));
+    // Card preview section
+    const cardPreviewSection = document.createElement('div');
+    cardPreviewSection.className = 'w-full md:w-1/3 flex flex-col items-center';
     
-    const actionsDiv = document.createElement('div');
-    actionsDiv.className = 'w-full md:w-2/3 space-y-4';
+    const cardPreview = buildCardElement(cardData.cardInfo, instance);
+    cardPreview.style.width = '250px';
+    cardPreview.style.margin = '0 auto 1rem auto';
     
-    actionsDiv.innerHTML = `
-        <h3 class="text-xl font-bold text-white">${cardInfo.name}</h3>
-        <div class="bg-gray-800 p-4 rounded-lg">
-            <p class="text-gray-300 mb-2">Condition: <span class="font-bold">${instance.condition}</span></p>
-            <p class="text-gray-300 mb-2">Protection:
-                <span class="font-bold">${instance.sleeved ? 'Sleeved' : 'Unsleeved'}</span>,
-                <span class="font-bold">${instance.toploadered ? 'In Toploader' : 'No Toploader'}</span>
-            </p>
-            <p class="text-gray-300">Estimated Value: <span class="font-bold text-green-400">$${getCardValue(cardInfo, instance).toFixed(2)}</span></p>
-        </div>
-        <div class="bg-gray-800 p-4 rounded-lg">
-            <h4 class="font-bold text-white mb-2">Protection Options</h4>
-            <div class="flex gap-2 mb-2">
-                ${!instance.sleeved ? `<button class="sleeve-card-btn bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded text-sm" data-card-id="${cardId}" data-instance-uid="${instanceUid}">Add Sleeve</button>` : `<button class="unsleeve-card-btn bg-gray-600 hover:bg-gray-700 text-white py-1 px-3 rounded text-sm" data-card-id="${cardId}" data-instance-uid="${instanceUid}">Remove Sleeve</button>`}
-                ${!instance.toploadered ? `<button class="toploader-card-btn bg-purple-600 hover:bg-purple-700 text-white py-1 px-3 rounded text-sm" data-card-id="${cardId}" data-instance-uid="${instanceUid}">Add Toploader</button>` : `<button class="remove-toploader-btn bg-gray-600 hover:bg-gray-700 text-white py-1 px-3 rounded text-sm" data-card-id="${cardId}" data-instance-uid="${instanceUid}">Remove Toploader</button>`}
+    cardPreviewSection.appendChild(cardPreview);
+    
+    // Card info section
+    const cardInfoSection = document.createElement('div');
+    cardInfoSection.className = 'w-full md:w-2/3';
+    
+    cardInfoSection.innerHTML = `
+    <div class="bg-gray-800 p-6 rounded-lg mb-6">
+        <h3 class="text-xl font-bold text-white mb-4">${cardData.cardInfo.name}</h3>
+        <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+                <p class="text-gray-400 text-sm">Card ID</p>
+                <p class="text-white">${cardData.cardInfo.id}</p>
             </div>
-            <p class="text-xs text-gray-400">Protection improves condition stability and prevents damage.</p>
+            <div>
+                <p class="text-gray-400 text-sm">Rarity</p>
+                <p class="text-white">${cardData.cardInfo.rarity}</p>
+            </div>
+            <div>
+                <p class="text-gray-400 text-sm">Condition</p>
+                <p class="text-white">${instance.condition}</p>
+            </div>
+            <div>
+                <p class="text-gray-400 text-sm">Value</p>
+                <p class="text-green-400 font-bold">$${cardValue.toFixed(2)}</p>
+            </div>
         </div>
-        <div class="bg-gray-800 p-4 rounded-lg">
-            <h4 class="font-bold text-white mb-2">Market Options</h4>
-            <button class="sell-card-btn bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded" data-card-id="${cardId}" data-instance-uid="${instanceUid}">Sell Card</button>
-            <p class="text-xs text-gray-400 mt-1">Sell this card for its current market value.</p>
+        <div class="mb-4">
+            <p class="text-gray-400 text-sm">Acquired</p>
+            <p class="text-white">Day ${instance.acquired.day}, Year ${instance.acquired.year}</p>
         </div>
+        <div>
+            <p class="text-gray-400 text-sm">Lore</p>
+            <p class="text-white italic">${cardData.cardInfo.lore || "No lore available for this card."}</p>
+        </div>
+    </div>
+    
+    <div class="bg-gray-800 p-6 rounded-lg mb-6">
+        <h3 class="text-xl font-bold text-white mb-4">Card Protection</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <p class="text-gray-400 text-sm mb-2">Sleeve Status</p>
+                ${instance.sleeved ? 
+                    `<div class="flex items-center text-green-400 mb-2">
+                        <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        Card is sleeved
+                    </div>
+                    <button class="unsleeve-card-btn bg-red-600 hover:bg-red-700 text-white py-1 px-3 rounded text-sm" data-card-id="${cardId}" data-instance-uid="${instanceUid}">
+                        Remove Sleeve
+                    </button>` :
+                    `<div class="flex items-center text-gray-400 mb-2">
+                        <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                        Card is not sleeved
+                    </div>
+                    <button class="sleeve-card-btn bg-green-600 hover:bg-green-700 text-white py-1 px-3 rounded text-sm ${gameState.player.supplies.sleeves <= 0 ? 'opacity-50 cursor-not-allowed' : ''}" data-card-id="${cardId}" data-instance-uid="${instanceUid}" ${gameState.player.supplies.sleeves <= 0 ? 'disabled' : ''}>
+                        Add Sleeve (${gameState.player.supplies.sleeves} available)
+                    </button>`
+                }
+            </div>
+            <div>
+                <p class="text-gray-400 text-sm mb-2">Toploader Status</p>
+                ${instance.toploadered ? 
+                    `<div class="flex items-center text-green-400 mb-2">
+                        <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        Card is in toploader
+                    </div>
+                    <button class="remove-toploader-btn bg-red-600 hover:bg-red-700 text-white py-1 px-3 rounded text-sm" data-card-id="${cardId}" data-instance-uid="${instanceUid}">
+                        Remove Toploader
+                    </button>` :
+                    `<div class="flex items-center text-gray-400 mb-2">
+                        <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                        Card is not in toploader
+                    </div>
+                    <button class="toploader-card-btn bg-green-600 hover:bg-green-700 text-white py-1 px-3 rounded text-sm ${gameState.player.supplies.toploaders <= 0 ? 'opacity-50 cursor-not-allowed' : ''}" data-card-id="${cardId}" data-instance-uid="${instanceUid}" ${gameState.player.supplies.toploaders <= 0 ? 'disabled' : ''}>
+                        Add Toploader (${gameState.player.supplies.toploaders} available)
+                    </button>`
+                }
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-gray-800 p-6 rounded-lg">
+        <h3 class="text-xl font-bold text-white mb-4">Actions</h3>
+        <div class="flex flex-wrap gap-3">
+            <button class="sell-card-btn bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded" data-card-id="${cardId}" data-instance-uid="${instanceUid}">
+                Sell for $${cardValue.toFixed(2)}
+            </button>
+            <button class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded" onclick="renderMainView('collection')">
+                Back to Collection
+            </button>
+        </div>
+    </div>
     `;
     
-    managementDiv.appendChild(previewDiv);
-    managementDiv.appendChild(actionsDiv);
-    container.appendChild(managementDiv);
-}
-
-function buildCardElement(cardInfo, instance) {
-    const cardElement = document.createElement('div');
-    cardElement.className = 'card-container';
-    cardElement.dataset.cardId = cardInfo.id;
-    if (instance) cardElement.dataset.instanceUid = instance.uid;
-
-    // Handle Insert Art cards with special styling
-    if (cardInfo.layout === 'Insert-Art') {
-        cardElement.classList.add('card-insert-art');
-        
-        const cardInner = document.createElement('div');
-        cardInner.className = 'card-inner';
-        
-        // Use lazy loading for insert art card images
-        const artImg = createLazyCardImage(
-            cardInfo.img || `${ASSET_PATH}fallback.png`,
-            cardInfo.name,
-            'card-art'
-        );
-        cardInner.appendChild(artImg);
-        
-        // Use the provided .card-text-overlay CSS for insert cards
-        const textOverlay = document.createElement('div');
-        textOverlay.className = 'card-text-overlay';
-        
-        const nameBox = document.createElement('div');
-        nameBox.className = 'card-name-box';
-        nameBox.textContent = cardInfo.name;
-        
-        // Position the name box using the insertArt layout coordinates
-        const layout = LAYOUT_BLUEPRINTS.insertArt;
-        if (layout && layout.name) {
-            nameBox.style.left = `${(layout.name.x / 750) * 100}%`;
-            nameBox.style.top = `${(layout.name.y / 1050) * 100}%`;
-            nameBox.style.width = `${(layout.name.width / 750) * 100}%`;
-            nameBox.style.height = `${(layout.name.height / 1050) * 100}%`;
-        }
-        
-        textOverlay.appendChild(nameBox);
-        cardInner.appendChild(textOverlay);
-        
-        const textureOverlay = document.createElement('div');
-        textureOverlay.className = 'card-texture-overlay';
-        cardInner.appendChild(textureOverlay);
-        
-        // Add holo overlay for insert art cards
-        const holoOverlay = document.createElement('div');
-        holoOverlay.className = 'card-holo-overlay';
-        cardInner.appendChild(holoOverlay);
-        
-        cardElement.appendChild(cardInner);
-        
-        const inspectOverlay = document.createElement('div');
-        inspectOverlay.className = 'card-inspect-overlay';
-        cardElement.appendChild(inspectOverlay);
-        
-        return cardElement;
-    }
-
-    // Standard and Full-Art card handling with lazy loading
-    const artImg = createLazyCardImage(
-        cardInfo.img || `${ASSET_PATH}fallback.png`,
-        cardInfo.name,
-        'card-art'
-    );
-    cardElement.appendChild(artImg);
-
-    // Frame images are critical assets and should load immediately
-    const frameImg = document.createElement('img');
-    const frameType = cardInfo.layout === 'Full-Art' ? 'fullArt' : 'standard';
-    frameImg.src = ASSETS.frames[frameType];
-    frameImg.className = 'card-frame';
-    cardElement.appendChild(frameImg);
-
-    const textOverlay = document.createElement('div');
-    textOverlay.className = 'card-text-overlay';
-    const canvasWidth = 750;
-    const canvasHeight = 1050;
-
-    if (cardInfo.layout === 'Standard') {
-        const blueprint = LAYOUT_BLUEPRINTS.standard;
-
-        const nameBox = document.createElement('div');
-        nameBox.className = 'card-name-box';
-        nameBox.style.left = `${(blueprint.name.x / canvasWidth) * 100}%`;
-        nameBox.style.top = `${(blueprint.name.y / canvasHeight) * 100}%`;
-        nameBox.style.width = `${(blueprint.name.width / canvasWidth) * 100}%`;
-        nameBox.style.height = `${(blueprint.name.height / canvasHeight) * 100}%`;
-        nameBox.textContent = cardInfo.name;
-        textOverlay.appendChild(nameBox);
-
-        const loreBox = document.createElement('div');
-        loreBox.className = 'card-lore-box';
-        loreBox.style.left = `${(blueprint.lore.x / canvasWidth) * 100}%`;
-        loreBox.style.top = `${(blueprint.lore.y / canvasHeight) * 100}%`;
-        loreBox.style.width = `${(blueprint.lore.width / canvasWidth) * 100}%`;
-        loreBox.style.height = `${(blueprint.lore.height / canvasHeight) * 100}%`;
-        loreBox.textContent = cardInfo.lore || "A mysterious creature with unknown powers.";
-        textOverlay.appendChild(loreBox);
+    cardPreviewSection.appendChild(document.createElement('div')); // Spacer
     
-    } else if (cardInfo.layout === 'Full-Art') {
-        const blueprint = LAYOUT_BLUEPRINTS.fullArt;
-        
-        const nameBox = document.createElement('div');
-        nameBox.className = 'card-name-box full-art-name-box'; 
-        nameBox.style.left = `${(blueprint.name.x / canvasWidth) * 100}%`;
-        nameBox.style.top = `${(blueprint.name.y / canvasHeight) * 100}%`;
-        nameBox.style.width = `${(blueprint.name.width / canvasWidth) * 100}%`;
-        nameBox.style.height = `${(blueprint.name.height / canvasHeight) * 100}%`;
-        nameBox.textContent = cardInfo.name;
-        textOverlay.appendChild(nameBox);
-    }
+    cardManagementDiv.appendChild(cardPreviewSection);
+    cardManagementDiv.appendChild(cardInfoSection);
     
-    cardElement.appendChild(textOverlay);
-
-    // Add holo effect for Holo Rare cards and all insert/chase cards
-    if (cardInfo.rarity === 'Holo Rare' || cardInfo.rarity === 'Chase' || cardInfo.rarity === 'Alternate Art') {
-        const holoOverlay = document.createElement('div');
-        holoOverlay.className = 'card-holo-overlay full-card';
-        cardElement.appendChild(holoOverlay);
-    }
-
-    const inspectOverlay = document.createElement('div');
-    inspectOverlay.className = 'card-inspect-overlay';
-    cardElement.appendChild(inspectOverlay);
-    
-    return cardElement;
+    container.appendChild(cardManagementDiv);
 }
 
 function renderAchievementsView(container) {
     const achievementsDiv = document.createElement('div');
-    achievementsDiv.className = 'space-y-4';
-    
-    const achievementsList = Object.values(ACHIEVEMENTS);
-    const unlockedCount = achievementsList.filter(a => a.unlocked).length;
-    
-    achievementsDiv.innerHTML = `
-        <div class="bg-gray-800 p-4 rounded-lg mb-6">
-            <h3 class="text-lg font-bold text-white mb-2">Progress</h3>
-            <p class="text-gray-300">Unlocked: ${unlockedCount} / ${achievementsList.length}</p>
-            <div class="w-full bg-gray-700 rounded-full h-2 mt-2">
-                <div class="bg-blue-600 h-2 rounded-full" style="width: ${(unlockedCount / achievementsList.length) * 100}%"></div>
-            </div>
-        </div>
-    `;
+    achievementsDiv.className = 'space-y-6';
     
     const grid = document.createElement('div');
     grid.className = 'grid grid-cols-1 md:grid-cols-2 gap-4';
     
-    achievementsList.forEach(achievement => {
+    Object.entries(ACHIEVEMENTS).forEach(([id, achievement]) => {
         const achievementCard = document.createElement('div');
         achievementCard.className = `bg-gray-800 p-4 rounded-lg border-l-4 ${achievement.unlocked ? 'border-green-500' : 'border-gray-600'}`;
         
         achievementCard.innerHTML = `
-            <div class="flex items-start gap-3">
-                <div class="text-2xl">${achievement.unlocked ? '🏆' : '🔒'}</div>
-                <div class="flex-1">
-                    <h4 class="font-bold text-white mb-1">${achievement.name}</h4>
-                    <p class="text-gray-300 text-sm mb-2">${achievement.description}</p>
-                    ${achievement.reward?.cash ? `<p class="text-green-400 text-xs">Reward: $${achievement.reward.cash}</p>` : ''}
-                    ${achievement.unlocked ? '<p class="text-green-500 text-xs font-bold">UNLOCKED</p>' : '<p class="text-gray-500 text-xs">Locked</p>'}
-                </div>
+        <div class="flex items-start">
+            <div class="achievement-icon mr-4 ${achievement.unlocked ? 'text-green-400' : 'text-gray-500'}">
+                ${achievement.unlocked ? 
+                    '<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>' :
+                    '<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>'
+                }
             </div>
+            <div class="flex-1">
+                <h3 class="font-bold text-lg ${achievement.unlocked ? 'text-white' : 'text-gray-400'}">${achievement.name}</h3>
+                <p class="text-sm ${achievement.unlocked ? 'text-gray-300' : 'text-gray-500'}">${achievement.description}</p>
+                ${achievement.reward ? 
+                    `<div class="mt-2 text-sm ${achievement.unlocked ? 'text-yellow-400' : 'text-gray-600'}">
+                        Reward: ${achievement.reward.cash ? `$${achievement.reward.cash}` : ''}
+                    </div>` : ''
+                }
+            </div>
+        </div>
         `;
         
         grid.appendChild(achievementCard);
     });
     
-        achievementsDiv.appendChild(grid);
+    achievementsDiv.appendChild(grid);
     container.appendChild(achievementsDiv);
 }
-
 function renderStatsView(container) {
     const statsDiv = document.createElement('div');
     statsDiv.className = 'space-y-6';
@@ -1375,46 +1078,54 @@ function renderStatsView(container) {
 }
 
 function renderRarityBreakdown() {
-    const rarities = ['Common', 'Uncommon', 'Holo Rare', 'Alternate Art', 'Chase'];
+    const rarities = ['Common', 'Uncommon', 'Holo Rare', 'Alternate Art', 'Insert Art', 'Chase'];
     const rarityCount = {};
+    
+    // Initialize counts
+    rarities.forEach(rarity => rarityCount[rarity] = 0);
     
     // Count cards by rarity
     Object.values(gameState.player.collection).forEach(cardData => {
         const rarity = cardData.cardInfo.rarity;
-        rarityCount[rarity] = (rarityCount[rarity] || 0) + cardData.instances.length;
+        if (rarityCount[rarity] !== undefined) {
+            rarityCount[rarity] += cardData.instances.length;
+        }
     });
     
-    // Calculate total cards
+    // Calculate total
     const totalCards = Object.values(rarityCount).reduce((sum, count) => sum + count, 0);
     
-    // Generate HTML for each rarity bar
+    // Generate HTML
     return rarities.map(rarity => {
-        const count = rarityCount[rarity] || 0;
-        const percentage = totalCards > 0 ? (count / totalCards) * 100 : 0;
-        
-        // Determine color based on rarity
-        let barColor;
-        switch(rarity) {
-            case 'Common': barColor = 'bg-gray-400'; break;
-            case 'Uncommon': barColor = 'bg-green-500'; break;
-            case 'Holo Rare': barColor = 'bg-purple-500'; break;
-            case 'Alternate Art': barColor = 'bg-yellow-500'; break;
-            case 'Chase': barColor = 'bg-red-500'; break;
-            default: barColor = 'bg-blue-500';
-        }
+        const count = rarityCount[rarity];
+        const percentage = totalCards > 0 ? (count / totalCards * 100).toFixed(1) : 0;
+        const barWidth = totalCards > 0 ? (count / totalCards * 100) : 0;
         
         return `
-            <div>
-                <div class="flex justify-between mb-1">
-                    <span class="text-sm text-white">${rarity}</span>
-                    <span class="text-sm text-gray-400">${count} (${percentage.toFixed(1)}%)</span>
-                </div>
-                <div class="w-full bg-gray-700 rounded-full h-2.5">
-                    <div class="${barColor} h-2.5 rounded-full" style="width: ${percentage}%"></div>
-                </div>
+        <div class="rarity-bar">
+            <div class="flex justify-between mb-1">
+                <span class="text-sm ${getRarityColor(rarity)}">${rarity}</span>
+                <span class="text-sm text-gray-400">${count} (${percentage}%)</span>
             </div>
+            <div class="w-full bg-gray-700 rounded-full h-2.5">
+                <div class="h-2.5 rounded-full ${getRarityBarColor(rarity)}" style="width: ${barWidth}%"></div>
+            </div>
+        </div>
         `;
     }).join('');
+}
+
+
+function getRarityBarColor(rarity) {
+    switch(rarity) {
+        case 'Common': return 'bg-gray-400';
+        case 'Uncommon': return 'bg-green-400';
+        case 'Holo Rare': return 'bg-purple-400';
+        case 'Alternate Art': return 'bg-yellow-400';
+        case 'Insert Art': return 'bg-blue-400';
+        case 'Chase': return 'bg-red-400';
+        default: return 'bg-gray-400';
+    }
 }
 
 function renderSettingsView(container) {
@@ -1422,107 +1133,74 @@ function renderSettingsView(container) {
     settingsDiv.className = 'space-y-6';
     
     settingsDiv.innerHTML = `
-        <div class="bg-gray-800 p-6 rounded-lg">
-            <h3 class="text-xl font-bold mb-4 text-white">Game Settings</h3>
-            <div class="space-y-4">
-                <div class="flex items-center">
-                    <input type="checkbox" id="tutorial-toggle" class="mr-2" ${gameState.settings?.tutorialCompleted ? '' : 'checked'}>
-                    <label for="tutorial-toggle" class="text-white">Show Tutorial</label>
-                </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="animations-toggle" class="mr-2" ${gameState.settings?.disableAnimations ? '' : 'checked'}>
-                    <label for="animations-toggle" class="text-white">Enable Animations</label>
-                </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="sound-toggle" class="mr-2" ${gameState.settings?.disableSound ? '' : 'checked'}>
-                    <label for="sound-toggle" class="text-white">Enable Sound Effects</label>
-                </div>
+    <div class="bg-gray-800 p-6 rounded-lg">
+        <h3 class="text-xl font-bold mb-6 text-white">Game Settings</h3>
+        
+        <div class="mb-6">
+            <h4 class="text-lg font-semibold text-white mb-2">Save Management</h4>
+            <div class="flex flex-wrap gap-3">
+                <button id="export-save-btn" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded">
+                    Export Save Data
+                </button>
+                <button id="reset-game-btn" class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded">
+                    Reset Game
+                </button>
             </div>
         </div>
         
-        <div class="bg-gray-800 p-6 rounded-lg">
-            <h3 class="text-xl font-bold mb-4 text-white">Save & Reset</h3>
-            <div class="space-y-4">
-                <div>
-                    <button id="save-game-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mr-2">
-                        Save Game
-                    </button>
-                    <button id="export-save-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                        Export Save Data
-                    </button>
-                </div>
-                <div>
-                    <button id="reset-game-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
-                        Reset Game
-                    </button>
-                    <p class="text-xs text-gray-400 mt-1">Warning: This will delete all your progress!</p>
-                </div>
-            </div>
+        <div class="mb-6">
+            <h4 class="text-lg font-semibold text-white mb-2">Tutorial</h4>
+            <button id="restart-tutorial-btn" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded">
+                Restart Tutorial
+            </button>
         </div>
         
-        <div class="bg-gray-800 p-6 rounded-lg">
-            <h3 class="text-xl font-bold mb-4 text-white">About</h3>
-            <p class="text-gray-300 mb-2">Cardboard Capitalist v0.9.0</p>
-            <p class="text-gray-400 text-sm">A trading card collection simulator.</p>
-            <p class="text-gray-400 text-sm mt-4">Created by Matt Flexx</p>
+        <div>
+            <h4 class="text-lg font-semibold text-white mb-2">About</h4>
+            <p class="text-gray-300 mb-2">Cardboard Capitalist v1.0</p>
+            <p class="text-gray-400 text-sm">A trading card collection simulator game.</p>
         </div>
+    </div>
     `;
     
     container.appendChild(settingsDiv);
     
     // Add event listeners
-    document.getElementById('save-game-btn').addEventListener('click', () => {
-        saveGame();
-        logMessage("Game saved successfully!", "success");
-    });
-    
-    document.getElementById('export-save-btn').addEventListener('click', () => {
-        exportSaveData();
-    });
-    
-    document.getElementById('reset-game-btn').addEventListener('click', () => {
-        if (confirm("Are you sure you want to reset your game? All progress will be lost!")) {
-            resetGame();
-            logMessage("Game reset successfully. Starting fresh!", "system");
-            renderMainView('collection');
-        }
-    });
-    
-    document.getElementById('tutorial-toggle').addEventListener('change', (e) => {
-        if (!gameState.settings) gameState.settings = {};
-        gameState.settings.tutorialCompleted = !e.target.checked;
-        saveGame();
-    });
-    
-    document.getElementById('animations-toggle').addEventListener('change', (e) => {
-        if (!gameState.settings) gameState.settings = {};
-        gameState.settings.disableAnimations = !e.target.checked;
-        saveGame();
-    });
-    
-    document.getElementById('sound-toggle').addEventListener('change', (e) => {
-        if (!gameState.settings) gameState.settings = {};
-        gameState.settings.disableSound = !e.target.checked;
-        saveGame();
-    });
+    document.getElementById('export-save-btn').addEventListener('click', exportSaveData);
+    document.getElementById('reset-game-btn').addEventListener('click', confirmResetGame);
+    document.getElementById('restart-tutorial-btn').addEventListener('click', startTutorial);
+}
+
+function confirmResetGame() {
+    if (confirm("Are you sure you want to reset the game? All progress will be lost!")) {
+        resetGame();
+    }
 }
 
 function setupNavigation() {
-    DOM.navContainer.innerHTML = '';
-    
     const navItems = [
-        { id: 'collection', label: 'Collection', icon: '📚' },
-        { id: 'store', label: 'Store', icon: '🛒' },
-        { id: 'doodledex', label: 'DoodleDex', icon: '📱' },
-        { id: 'achievements', label: 'Achievements', icon: '🏆' },
-        { id: 'stats', label: 'Statistics', icon: '📊' },
-        { id: 'settings', label: 'Settings', icon: '⚙️' }
+        { id: 'collection', label: 'Collection', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
+        { id: 'store', label: 'Store', icon: 'M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z' },
+        { id: 'doodledex', label: 'DoodleDex', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
+        { id: 'achievements', label: 'Achievements', icon: 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z' },
+        { id: 'stats', label: 'Statistics', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
+        { id: 'settings', label: 'Settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' }
     ];
+    
+    DOM.navContainer.innerHTML = '';
     
     navItems.forEach(item => {
         const navButton = document.createElement('button');
-        navButton.className = `nav-btn w-full text-left px-3 py-2 rounded flex items-center ${gameState.ui.currentView === item.id ? 'bg-blue-700 text-white' : 'text-gray-300 hover:bg-gray-700'}`;
-        navButton.innerHTML = `<span class="mr-2">${item.icon}</span> ${item.label}`;
+        navButton.className = `nav-btn flex items-center justify-center p-2 rounded-lg ${gameState.ui.currentView === item.id ? 'bg-gray-700 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'}`;
+        navButton.dataset.view = item.id;
+        
+        navButton.innerHTML = `
+        <span class="sr-only">${item.label}</span>
+        <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${item.icon}"></path>
+        </svg>
+        `;
+        
         navButton.addEventListener('click', () => renderMainView(item.id));
         DOM.navContainer.appendChild(navButton);
     });
@@ -1532,11 +1210,8 @@ function setupEventListeners() {
     // Next day button
     DOM.nextDayBtn.addEventListener('click', advanceDay);
     
-    // Close loupe view button
-    DOM.closeLoupeBtn.addEventListener('click', closeLoupeView);
-    
-    // Global event delegation for card interactions
-    document.addEventListener('click', (e) => {
+    // Card click event delegation
+    document.addEventListener('click', function(e) {
         // Card inspection
         if (e.target.closest('.card-inspect-overlay')) {
             const cardElement = e.target.closest('.card-container');
@@ -1544,11 +1219,7 @@ function setupEventListeners() {
                 const cardId = cardElement.dataset.cardId;
                 const instanceUid = cardElement.dataset.instanceUid;
                 
-                if (e.ctrlKey || e.metaKey) {
-                    // Ctrl+Click to open loupe view
-                    openLoupeView(cardId);
-                } else {
-                    // Normal click to open card management
+                if (cardId) {
                     gameState.ui.selectedCard = { cardId, instanceUid };
                     renderMainView('card-management');
                 }
@@ -1608,87 +1279,216 @@ function setupEventListeners() {
         }
     });
 }
+function buildCardElement(cardInfo, instance) {
+    const cardElement = document.createElement('div');
+    cardElement.className = 'card-container';
+    cardElement.dataset.cardId = cardInfo.id;
+    if (instance) cardElement.dataset.instanceUid = instance.uid;
 
-function openLoupeView(cardId) {
-    const cardData = gameState.player.collection[cardId];
-    if (!cardData) return;
-    
-    DOM.loupeCardContainer.innerHTML = '';
-    
-    const cardElement = buildCardElement(cardData.cardInfo);
-    cardElement.classList.add('loupe-card');
-    
-    DOM.loupeCardContainer.appendChild(cardElement);
-    DOM.loupeModal.classList.remove('hidden');
-}
+    // Handle Insert Art cards with special styling
+    if (cardInfo.layout === 'Insert-Art') {
+        cardElement.classList.add('card-insert-art');
+        
+        const cardInner = document.createElement('div');
+        cardInner.className = 'card-inner';
+        
+        // Use lazy loading for insert art card images
+        const artImg = createLazyCardImage(
+            cardInfo.img || `${ASSET_PATH}fallback.png`,
+            cardInfo.name,
+            'card-art'
+        );
+        cardInner.appendChild(artImg);
+        
+        // Use the provided .card-text-overlay CSS for insert cards
+        const textOverlay = document.createElement('div');
+        textOverlay.className = 'card-text-overlay';
+        
+        const nameBox = document.createElement('div');
+        nameBox.className = 'card-name-box';
+        nameBox.textContent = cardInfo.name;
+        
+        // Position the name box using the insertArt layout coordinates
+        const layout = LAYOUT_BLUEPRINTS.insertArt;
+        if (layout && layout.name) {
+            nameBox.style.left = `${(layout.name.x / 750) * 100}%`;
+            nameBox.style.top = `${(layout.name.y / 1050) * 100}%`;
+            nameBox.style.width = `${(layout.name.width / 750) * 100}%`;
+            nameBox.style.height = `${(layout.name.height / 1050) * 100}%`;
+        }
+        
+        textOverlay.appendChild(nameBox);
+        cardInner.appendChild(textOverlay);
+        
+        const textureOverlay = document.createElement('div');
+        textureOverlay.className = 'card-texture-overlay';
+        cardInner.appendChild(textureOverlay);
+        
+        // Add holo overlay for insert art cards
+        const holoOverlay = document.createElement('div');
+        holoOverlay.className = 'card-holo-overlay';
+        cardInner.appendChild(holoOverlay);
+        
+        cardElement.appendChild(cardInner);
+        
+        const inspectOverlay = document.createElement('div');
+        inspectOverlay.className = 'card-inspect-overlay';
+        cardElement.appendChild(inspectOverlay);
+        
+        return cardElement;
+    }
 
-function closeLoupeView() {
-    DOM.loupeModal.classList.add('hidden');
-}
+    // Standard and Full-Art card handling with lazy loading
+    const artImg = createLazyCardImage(
+        cardInfo.img || `${ASSET_PATH}fallback.png`,
+        cardInfo.name,
+        'card-art'
+    );
+    cardElement.appendChild(artImg);
 
-function advanceDay() {
-    gameState.date.day++;
-    if (gameState.date.day > 30) {
-        gameState.date.day = 1;
-        gameState.date.year++;
+    // Frame images are critical assets and should load immediately
+    const frameImg = document.createElement('img');
+    const frameType = cardInfo.layout === 'Full-Art' ? 'fullArt' : 'standard';
+    frameImg.src = ASSETS.frames[frameType];
+    frameImg.className = 'card-frame';
+    cardElement.appendChild(frameImg);
+
+    const textOverlay = document.createElement('div');
+    textOverlay.className = 'card-text-overlay';
+    const canvasWidth = 750;
+    const canvasHeight = 1050;
+
+    // Add evolution chain if applicable
+    if (cardInfo.evolvesFrom || TCG_SETS.genesis.cards.some(card => card.evolvesFrom === cardInfo.id)) {
+        const blueprint = LAYOUT_BLUEPRINTS[cardInfo.layout.toLowerCase()] || LAYOUT_BLUEPRINTS.standard;
+        
+        // Get the evolution chain
+        const evolutionChain = buildEvolutionChain(cardInfo.id);
+        
+        if (evolutionChain.length > 1) { // Only show if there's an evolution relationship
+            const chainContainer = document.createElement('div');
+            chainContainer.className = 'evolution-chain-container';
+            chainContainer.style.left = `${(blueprint.evolutionChain.x / canvasWidth) * 100}%`;
+            chainContainer.style.top = `${(blueprint.evolutionChain.y / canvasHeight) * 100}%`;
+            chainContainer.style.width = `${(blueprint.evolutionChain.width / canvasWidth) * 100}%`;
+            chainContainer.style.height = `${(blueprint.evolutionChain.height / canvasHeight) * 100}%`;
+            
+            const chainElement = document.createElement('div');
+            chainElement.className = 'evolution-chain';
+            
+            // Add each evolution to the chain
+            evolutionChain.forEach((evo, index) => {
+                // Add arrow between nodes (except before the first one)
+                if (index > 0) {
+                    const arrow = document.createElement('div');
+                    arrow.className = 'evolution-arrow';
+                    chainElement.appendChild(arrow);
+                }
+                
+                // Create evolution node
+                const node = document.createElement('div');
+                node.className = `evolution-node ${evo.id === cardInfo.id ? 'current' : ''}`;
+                node.style.backgroundImage = `url(${evo.img || `${ASSET_PATH}fallback.png`})`;
+                
+                // Add tooltip with name
+                const tooltip = document.createElement('div');
+                tooltip.className = 'evolution-tooltip';
+                tooltip.textContent = evo.name;
+                node.appendChild(tooltip);
+                
+                chainElement.appendChild(node);
+            });
+            
+            chainContainer.appendChild(chainElement);
+            textOverlay.appendChild(chainContainer);
+        }
+    }
+
+    if (cardInfo.layout === 'Standard') {
+        const blueprint = LAYOUT_BLUEPRINTS.standard;
+
+        const nameBox = document.createElement('div');
+        nameBox.className = 'card-name-box';
+        nameBox.style.left = `${(blueprint.name.x / canvasWidth) * 100}%`;
+        nameBox.style.top = `${(blueprint.name.y / canvasHeight) * 100}%`;
+        nameBox.style.width = `${(blueprint.name.width / canvasWidth) * 100}%`;
+        nameBox.style.height = `${(blueprint.name.height / canvasHeight) * 100}%`;
+        nameBox.textContent = cardInfo.name;
+        textOverlay.appendChild(nameBox);
+
+        const loreBox = document.createElement('div');
+        loreBox.className = 'card-lore-box';
+        loreBox.style.left = `${(blueprint.lore.x / canvasWidth) * 100}%`;
+        loreBox.style.top = `${(blueprint.lore.y / canvasHeight) * 100}%`;
+        loreBox.style.width = `${(blueprint.lore.width / canvasWidth) * 100}%`;
+        loreBox.style.height = `${(blueprint.lore.height / canvasHeight) * 100}%`;
+        loreBox.textContent = cardInfo.lore || "A mysterious creature with unknown powers.";
+        textOverlay.appendChild(loreBox);
+    
+    } else if (cardInfo.layout === 'Full-Art') {
+        const blueprint = LAYOUT_BLUEPRINTS.fullArt;
+        
+        const nameBox = document.createElement('div');
+        nameBox.className = 'card-name-box full-art-name-box'; 
+        nameBox.style.left = `${(blueprint.name.x / canvasWidth) * 100}%`;
+        nameBox.style.top = `${(blueprint.name.y / canvasHeight) * 100}%`;
+        nameBox.style.width = `${(blueprint.name.width / canvasWidth) * 100}%`;
+        nameBox.style.height = `${(blueprint.name.height / canvasHeight) * 100}%`;
+        nameBox.textContent = cardInfo.name;
+        textOverlay.appendChild(nameBox);
     }
     
-    // Process market events
-    cleanupExpiredMarketEvents();
-    const newEvent = updateMarket();
-    if (newEvent) {
-        logMessage(`Market Event: ${newEvent.name} - ${newEvent.effect}`, "market");
-        updateStats('marketEvents', 1);
+    cardElement.appendChild(textOverlay);
+
+    // Add holo effect for Holo Rare cards and all insert/chase cards
+    if (cardInfo.rarity === 'Holo Rare' || cardInfo.rarity === 'Chase' || cardInfo.rarity === 'Alternate Art') {
+        const holoOverlay = document.createElement('div');
+        holoOverlay.className = 'card-holo-overlay full-card';
+        cardElement.appendChild(holoOverlay);
     }
+
+    const inspectOverlay = document.createElement('div');
+    inspectOverlay.className = 'card-inspect-overlay';
+    cardElement.appendChild(inspectOverlay);
+    
+    return cardElement;
+}
+
+function addCardToCollection(cardInfo) {
+    if (!cardInfo) return;
+    
+    // Create a new instance of the card
+    const cardInstance = {
+        uid: generateUid(),
+        condition: determineCardCondition(),
+        sleeved: false,
+        toploadered: false,
+        acquired: { ...gameState.date },
+        graded: null
+    };
+    
+    // Add to collection
+    if (gameState.player.collection[cardInfo.id]) {
+        // Card already exists in collection, add new instance
+        gameState.player.collection[cardInfo.id].instances.push(cardInstance);
+    } else {
+        // New card for collection
+        gameState.player.collection[cardInfo.id] = {
+            cardInfo: cardInfo,
+            instances: [cardInstance]
+        };
+    }
+    
+    // Update stats
+    updateStats('cardsAcquired', 1);
     
     // Check for achievements
     checkAchievements();
     
-    // Update stats
-    updateStats('daysPlayed', 1);
+    // Log the acquisition
+    logMessage(`Added ${cardInfo.name} (${cardInfo.rarity}) to your collection!`, "acquisition");
     
-    // Save game
-    saveGame();
-    
-    // Update UI
-    calculateNetWorth();
-    updateUI();
-    
-    logMessage(`Day ${gameState.date.day}, Year ${gameState.date.year} has begun.`, "time");
-}
-
-function cleanupExpiredMarketEvents() {
-    const currentDay = gameState.date.day;
-    const currentYear = gameState.date.year;
-    
-    gameState.market.events = gameState.market.events.filter(event => {
-        return event.year > currentYear || (event.year === currentYear && event.expires >= currentDay);
-    });
-}
-
-function checkAchievements() {
-    let newAchievements = false;
-    
-    Object.entries(ACHIEVEMENTS).forEach(([id, achievement]) => {
-        if (!achievement.unlocked && achievement.requirement(gameState)) {
-            achievement.unlocked = true;
-            gameState.achievements[id] = true;
-            
-            // Apply rewards
-            if (achievement.reward) {
-                if (achievement.reward.cash) {
-                    gameState.player.cash += achievement.reward.cash;
-                    logMessage(`Achievement reward: $${achievement.reward.cash}`, "reward");
-                }
-            }
-            
-            logMessage(`Achievement Unlocked: ${achievement.name}`, "achievement");
-            newAchievements = true;
-            updateStats('achievementsUnlocked', 1);
-        }
-    });
-    
-    return newAchievements;
+    return cardInstance;
 }
 
 function buyPack(setName) {
@@ -1716,10 +1516,11 @@ function buyPack(setName) {
     calculateNetWorth();
     updateUI();
     
+    // Log purchase
     logMessage(`Purchased a ${set.name} pack for $${packPrice.toFixed(2)}.`, "purchase");
     
     // Prompt to open pack
-    if (confirm(`You bought a ${set.name} pack! Would you like to open it now?`)) {
+    if (confirm(`Pack added to your inventory. Would you like to open it now?`)) {
         gameState.ui.selectedPack = setName;
         renderMainView('pack-opening');
     }
@@ -1728,7 +1529,8 @@ function buyPack(setName) {
 }
 
 function buySupplies(supplyType) {
-    let price, quantity;
+    let price = 0;
+    let quantity = 0;
     
     switch(supplyType) {
         case 'sleeves':
@@ -1759,10 +1561,11 @@ function buySupplies(supplyType) {
     calculateNetWorth();
     updateUI();
     
+    // Log purchase
     logMessage(`Purchased ${quantity} ${supplyType} for $${price.toFixed(2)}.`, "purchase");
+    
     saveGame();
 }
-
 function openPack(setName) {
     const set = TCG_SETS[setName];
     if (!set || !gameState.player.sealedInventory[setName] || gameState.player.sealedInventory[setName] <= 0) {
@@ -1770,26 +1573,7 @@ function openPack(setName) {
     }
     
     // Generate pack contents
-    const packCards = [];
-    const rarityWeights = {'Common': 70, 'Uncommon': 20, 'Holo Rare': 8, 'Alternate Art': 1.5, 'Chase': 0.5};
-    
-    for (let i = 0; i < 11; i++) {
-        const rarity = weightedRandomChoice(rarityWeights);
-        
-        // For base cards (Common, Uncommon, Holo Rare), only include cards 001-040
-        let availableCards;
-        if (['Common', 'Uncommon', 'Holo Rare'].includes(rarity)) {
-            availableCards = set.cards.filter(c => c.rarity === rarity && c.doodledexNum >= 1 && c.doodledexNum <= 40);
-        } else {
-            // For special cards (Alternate Art, Chase, Insert Art), include all
-            availableCards = set.cards.filter(c => c.rarity === rarity);
-        }
-        
-        if (availableCards.length > 0) {
-            const randomCard = availableCards[Math.floor(Math.random() * availableCards.length)];
-            packCards.push(randomCard);
-        }
-    }
+    const packCards = generatePackCards(set);
     
     // Add cards to collection
     packCards.forEach(card => {
@@ -1801,82 +1585,46 @@ function openPack(setName) {
     
     // Update stats
     updateStats('packsOpened', 1);
-    updateStats('cardsAcquired', packCards.length);
-    
-    // Log results
-    logMessage(`Opened a ${set.name} pack! Got ${packCards.length} cards.`, "success");
-    packCards.forEach(card => logMessage(`• ${card.name} (${card.rarity})`, "info"));
     
     // Check for achievements
     checkAchievements();
     
-    // Update UI
-    calculateNetWorth();
-    updateUI();
-    
+    // Save game
     saveGame();
+    
+    // Log pack opening
+    logMessage(`Opened a ${set.name} pack and found ${packCards.length} cards!`, "pack");
+    
     return packCards;
-}
-
-function addCardToCollection(card) {
-    if (!card) return;
-    
-    // Generate a unique ID for this card instance
-    const instanceUid = generateUid();
-    const condition = determineCardCondition();
-    
-    // Add to collection
-    if (!gameState.player.collection[card.id]) {
-        gameState.player.collection[card.id] = {
-            cardInfo: card,
-            instances: []
-        };
-    }
-    
-    gameState.player.collection[card.id].instances.push({
-        uid: instanceUid,
-        condition: condition,
-        sleeved: false,
-        toploadered: false,
-        acquired: {
-            day: gameState.date.day,
-            year: gameState.date.year
-        }
-    });
-    
-    // Check if this is a high value card
-    const cardValue = getCardValue(card);
-    if (cardValue > (gameState.stats.highestValueCard?.value || 0)) {
-        gameState.stats.highestValueCard = {
-            name: card.name,
-            value: cardValue
-        };
-    }
-    
-    return instanceUid;
 }
 
 function sleeveCard(cardId, instanceUid) {
     const cardData = gameState.player.collection[cardId];
     if (!cardData) return;
     
-    const instance = cardData.instances.find(i => i.uid == instanceUid);
-    if (!instance || instance.sleeved) return;
+    const instance = cardData.instances.find(i => i.uid === instanceUid);
+    if (!instance) return;
     
-    if (gameState.player.supplies.sleeves <= 0) {
-        logMessage("You don't have any sleeves left. Buy more from the store.", "error");
+    if (instance.sleeved) {
+        logMessage(`This card is already sleeved.`, "info");
         return;
     }
     
+    if (gameState.player.supplies.sleeves <= 0) {
+        logMessage(`You don't have any sleeves. Visit the store to buy more.`, "error");
+        return;
+    }
+    
+    // Apply sleeve
     instance.sleeved = true;
     gameState.player.supplies.sleeves--;
     
-    logMessage(`Sleeved your ${cardData.cardInfo.name}.`, "info");
-    
     // Update UI
-    calculateNetWorth();
     updateUI();
     renderMainView('card-management');
+    
+    // Log action
+    logMessage(`Sleeved ${cardData.cardInfo.name}.`, "action");
     
     saveGame();
 }
@@ -1885,18 +1633,24 @@ function unsleeveCard(cardId, instanceUid) {
     const cardData = gameState.player.collection[cardId];
     if (!cardData) return;
     
-    const instance = cardData.instances.find(i => i.uid == instanceUid);
-    if (!instance || !instance.sleeved) return;
+    const instance = cardData.instances.find(i => i.uid === instanceUid);
+    if (!instance) return;
     
+    if (!instance.sleeved) {
+        logMessage(`This card is not sleeved.`, "info");
+        return;
+    }
+    
+    // Remove sleeve
     instance.sleeved = false;
     gameState.player.supplies.sleeves++;
     
-    logMessage(`Removed sleeve from your ${cardData.cardInfo.name}.`, "info");
-    
     // Update UI
-    calculateNetWorth();
     updateUI();
     renderMainView('card-management');
+    
+    // Log action
+    logMessage(`Removed sleeve from ${cardData.cardInfo.name}.`, "action");
     
     saveGame();
 }
@@ -1905,23 +1659,29 @@ function toploaderCard(cardId, instanceUid) {
     const cardData = gameState.player.collection[cardId];
     if (!cardData) return;
     
-    const instance = cardData.instances.find(i => i.uid == instanceUid);
-    if (!instance || instance.toploadered) return;
+    const instance = cardData.instances.find(i => i.uid === instanceUid);
+    if (!instance) return;
     
-    if (gameState.player.supplies.toploaders <= 0) {
-        logMessage("You don't have any toploaders left. Buy more from the store.", "error");
+    if (instance.toploadered) {
+        logMessage(`This card is already in a toploader.`, "info");
         return;
     }
     
+    if (gameState.player.supplies.toploaders <= 0) {
+        logMessage(`You don't have any toploaders. Visit the store to buy more.`, "error");
+        return;
+    }
+    
+    // Apply toploader
     instance.toploadered = true;
     gameState.player.supplies.toploaders--;
     
-    logMessage(`Added toploader to your ${cardData.cardInfo.name}.`, "info");
-    
     // Update UI
-    calculateNetWorth();
     updateUI();
     renderMainView('card-management');
+    
+    // Log action
+    logMessage(`Added ${cardData.cardInfo.name} to a toploader.`, "action");
     
     saveGame();
 }
@@ -1930,18 +1690,24 @@ function removeToploader(cardId, instanceUid) {
     const cardData = gameState.player.collection[cardId];
     if (!cardData) return;
     
-    const instance = cardData.instances.find(i => i.uid == instanceUid);
-    if (!instance || !instance.toploadered) return;
+    const instance = cardData.instances.find(i => i.uid === instanceUid);
+    if (!instance) return;
     
+    if (!instance.toploadered) {
+        logMessage(`This card is not in a toploader.`, "info");
+        return;
+    }
+    
+    // Remove toploader
     instance.toploadered = false;
     gameState.player.supplies.toploaders++;
     
-    logMessage(`Removed toploader from your ${cardData.cardInfo.name}.`, "info");
-    
     // Update UI
-    calculateNetWorth();
     updateUI();
     renderMainView('card-management');
+    
+    // Log action
+    logMessage(`Removed toploader from ${cardData.cardInfo.name}.`, "action");
     
     saveGame();
 }
@@ -1950,94 +1716,392 @@ function sellCard(cardId, instanceUid) {
     const cardData = gameState.player.collection[cardId];
     if (!cardData) return;
     
-    const instanceIndex = cardData.instances.findIndex(i => i.uid == instanceUid);
+    const instanceIndex = cardData.instances.findIndex(i => i.uid === instanceUid);
     if (instanceIndex === -1) return;
     
     const instance = cardData.instances[instanceIndex];
     const cardValue = getCardValue(cardData.cardInfo, instance);
     
-    if (confirm(`Are you sure you want to sell this ${cardData.cardInfo.name} for $${cardValue.toFixed(2)}?`)) {
-        // Remove card instance
-        cardData.instances.splice(instanceIndex, 1);
-        
-        // If no instances left, remove card from collection
-        if (cardData.instances.length === 0) {
-            delete gameState.player.collection[cardId];
-        }
-        
-        // Add cash
-        gameState.player.cash += cardValue;
-        
-        // Return sleeve/toploader if applicable
-        if (instance.sleeved) {
-            gameState.player.supplies.sleeves++;
-        }
-        if (instance.toploadered) {
-            gameState.player.supplies.toploaders++;
-        }
-        
-        // Update stats
-        updateStats('cardsSold', 1);
-        updateStats('totalEarned', cardValue);
-        
-        logMessage(`Sold ${cardData.cardInfo.name} for $${cardValue.toFixed(2)}.`, "success");
-        
-        // Check for achievements
-        checkAchievements();
-        
-        // Update UI
-        calculateNetWorth();
-        updateUI();
-        renderMainView('collection');
-        
-        saveGame();
+    // Confirm sale
+    if (!confirm(`Are you sure you want to sell ${cardData.cardInfo.name} for $${cardValue.toFixed(2)}?`)) {
+        return;
     }
+    
+    // Add cash
+    gameState.player.cash += cardValue;
+    updateStats('totalEarned', cardValue);
+    updateStats('cardsSold', 1);
+    
+    // Return supplies if card was protected
+    if (instance.sleeved) {
+        gameState.player.supplies.sleeves++;
+    }
+    if (instance.toploadered) {
+        gameState.player.supplies.toploaders++;
+    }
+    
+    // Remove card instance
+    cardData.instances.splice(instanceIndex, 1);
+    
+    // If no instances left, remove card from collection
+    if (cardData.instances.length === 0) {
+        delete gameState.player.collection[cardId];
+    }
+    
+    // Update UI
+    calculateNetWorth();
+    updateUI();
+    renderMainView('collection');
+    
+    // Log sale
+    logMessage(`Sold ${cardData.cardInfo.name} for $${cardValue.toFixed(2)}.`, "sale");
+    
+    saveGame();
+
+    function advanceDay() {
+    // Increment day
+    gameState.date.day++;
+    
+    // Check for year change (assuming 365 days per year)
+    if (gameState.date.day > 365) {
+        gameState.date.day = 1;
+        gameState.date.year++;
+    }
+    
+    // Update market
+    const marketEvent = updateMarket();
+    if (marketEvent) {
+        logMessage(`Market Event: ${marketEvent.name} - ${marketEvent.effect}`, "market");
+        updateStats('marketEvents', 1);
+    }
+    
+    // Clean up expired market events
+    cleanupExpiredMarketEvents();
+    
+    // Update stats
+    updateStats('daysPlayed', 1);
+    
+    // Check for achievements
+    checkAchievements();
+    
+    // Update UI
+    updateUI();
+    
+    // Save game
+    saveGame();
+    
+    // Log day advancement
+    logMessage(`Advanced to Day ${gameState.date.day}, Year ${gameState.date.year}.`, "time");
+}
+
+function openPack(setName) {
+    const set = TCG_SETS[setName];
+    if (!set || !gameState.player.sealedInventory[setName] || gameState.player.sealedInventory[setName] <= 0) {
+        return;
+    }
+    
+    // Generate pack contents
+    const packCards = generatePackCards(set);
+    
+    // Add cards to collection
+    packCards.forEach(card => {
+        addCardToCollection(card);
+    });
+    
+    // Remove pack from inventory
+    gameState.player.sealedInventory[setName]--;
+    
+    // Update stats
+    updateStats('packsOpened', 1);
+    
+    // Check for achievements
+    checkAchievements();
+    
+    // Save game
+    saveGame();
+    
+    // Log pack opening
+    logMessage(`Opened a ${set.name} pack and found ${packCards.length} cards!`, "pack");
+    
+    return packCards;
+}
+
+function sleeveCard(cardId, instanceUid) {
+    const cardData = gameState.player.collection[cardId];
+    if (!cardData) return;
+    
+    const instance = cardData.instances.find(i => i.uid === instanceUid);
+    if (!instance) return;
+    
+    if (instance.sleeved) {
+        logMessage(`This card is already sleeved.`, "info");
+        return;
+    }
+    
+    if (gameState.player.supplies.sleeves <= 0) {
+        logMessage(`You don't have any sleeves. Visit the store to buy more.`, "error");
+        return;
+    }
+    
+    // Apply sleeve
+    instance.sleeved = true;
+    gameState.player.supplies.sleeves--;
+    
+    // Update UI
+    updateUI();
+    renderMainView('card-management');
+    
+    // Log action
+    logMessage(`Sleeved ${cardData.cardInfo.name}.`, "action");
+    
+    saveGame();
+}
+
+function unsleeveCard(cardId, instanceUid) {
+    const cardData = gameState.player.collection[cardId];
+    if (!cardData) return;
+    
+    const instance = cardData.instances.find(i => i.uid === instanceUid);
+    if (!instance) return;
+    
+    if (!instance.sleeved) {
+        logMessage(`This card is not sleeved.`, "info");
+        return;
+    }
+    
+    // Remove sleeve
+    instance.sleeved = false;
+    gameState.player.supplies.sleeves++;
+    
+    // Update UI
+    updateUI();
+    renderMainView('card-management');
+    
+    // Log action
+    logMessage(`Removed sleeve from ${cardData.cardInfo.name}.`, "action");
+    
+    saveGame();
+}
+
+function toploaderCard(cardId, instanceUid) {
+    const cardData = gameState.player.collection[cardId];
+    if (!cardData) return;
+    
+    const instance = cardData.instances.find(i => i.uid === instanceUid);
+    if (!instance) return;
+    
+    if (instance.toploadered) {
+        logMessage(`This card is already in a toploader.`, "info");
+        return;
+    }
+    
+    if (gameState.player.supplies.toploaders <= 0) {
+        logMessage(`You don't have any toploaders. Visit the store to buy more.`, "error");
+        return;
+    }
+    
+    // Apply toploader
+    instance.toploadered = true;
+    gameState.player.supplies.toploaders--;
+    
+    // Update UI
+    updateUI();
+    renderMainView('card-management');
+    
+    // Log action
+    logMessage(`Added ${cardData.cardInfo.name} to a toploader.`, "action");
+    
+    saveGame();
+}
+
+function removeToploader(cardId, instanceUid) {
+    const cardData = gameState.player.collection[cardId];
+    if (!cardData) return;
+    
+    const instance = cardData.instances.find(i => i.uid === instanceUid);
+    if (!instance) return;
+    
+    if (!instance.toploadered) {
+        logMessage(`This card is not in a toploader.`, "info");
+        return;
+    }
+    
+    // Remove toploader
+    instance.toploadered = false;
+    gameState.player.supplies.toploaders++;
+    
+    // Update UI
+    updateUI();
+    renderMainView('card-management');
+    
+    // Log action
+    logMessage(`Removed toploader from ${cardData.cardInfo.name}.`, "action");
+    
+    saveGame();
+}
+
+function sellCard(cardId, instanceUid) {
+    const cardData = gameState.player.collection[cardId];
+    if (!cardData) return;
+    
+    const instanceIndex = cardData.instances.findIndex(i => i.uid === instanceUid);
+    if (instanceIndex === -1) return;
+    
+    const instance = cardData.instances[instanceIndex];
+    const cardValue = getCardValue(cardData.cardInfo, instance);
+    
+    // Confirm sale
+    if (!confirm(`Are you sure you want to sell ${cardData.cardInfo.name} for $${cardValue.toFixed(2)}?`)) {
+        return;
+    }
+    
+    // Add cash
+    gameState.player.cash += cardValue;
+    updateStats('totalEarned', cardValue);
+    updateStats('cardsSold', 1);
+    
+    // Return supplies if card was protected
+    if (instance.sleeved) {
+        gameState.player.supplies.sleeves++;
+    }
+    if (instance.toploadered) {
+        gameState.player.supplies.toploaders++;
+    }
+    
+    // Remove card instance
+    cardData.instances.splice(instanceIndex, 1);
+    
+    // If no instances left, remove card from collection
+    if (cardData.instances.length === 0) {
+        delete gameState.player.collection[cardId];
+    }
+    
+    // Update UI
+    calculateNetWorth();
+    updateUI();
+    renderMainView('collection');
+    
+    // Log sale
+    logMessage(`Sold ${cardData.cardInfo.name} for $${cardValue.toFixed(2)}.`, "sale");
+    
+    saveGame();
+}
+
+function advanceDay() {
+    // Increment day
+    gameState.date.day++;
+    
+    // Check for year change (assuming 365 days per year)
+    if (gameState.date.day > 365) {
+        gameState.date.day = 1;
+        gameState.date.year++;
+    }
+    
+    // Update market
+    const marketEvent = updateMarket();
+    if (marketEvent) {
+        logMessage(`Market Event: ${marketEvent.name} - ${marketEvent.effect}`, "market");
+        updateStats('marketEvents', 1);
+    }
+    
+    // Clean up expired market events
+    cleanupExpiredMarketEvents();
+    
+    // Update stats
+    updateStats('daysPlayed', 1);
+    
+    // Check for achievements
+    checkAchievements();
+    
+    // Update UI
+    updateUI();
+    
+    // Save game
+    saveGame();
+    
+    // Log day advancement
+    logMessage(`Advanced to Day ${gameState.date.day}, Year ${gameState.date.year}.`, "time");
+}
+
+function cleanupExpiredMarketEvents() {
+    gameState.market.events = gameState.market.events.filter(event => {
+        return event.year > gameState.date.year || 
+               (event.year === gameState.date.year && event.expires >= gameState.date.day);
+    });
+}
+
+function checkAchievements() {
+    Object.values(ACHIEVEMENTS).forEach(achievement => {
+        if (!achievement.unlocked && achievement.requirement(gameState)) {
+            // Unlock achievement
+            achievement.unlocked = true;
+            gameState.achievements[achievement.id] = {
+                unlocked: true,
+                date: { ...gameState.date }
+            };
+            
+            // Apply reward
+            if (achievement.reward) {
+                if (achievement.reward.cash) {
+                    gameState.player.cash += achievement.reward.cash;
+                    logMessage(`Achievement reward: $${achievement.reward.cash} added to your account.`, "achievement");
+                }
+            }
+            
+            // Update stats
+            updateStats('achievementsUnlocked', 1);
+            
+            // Log achievement
+            logMessage(`Achievement Unlocked: ${achievement.name} - ${achievement.description}`, "achievement");
+        }
+    });
 }
 
 function updateUI() {
+    // Update player stats
     DOM.playerCash.textContent = `$${gameState.player.cash.toFixed(2)}`;
     DOM.playerNetWorth.textContent = `$${gameState.player.netWorth.toFixed(2)}`;
-    DOM.playerSleeves.textContent = gameState.player.supplies.sleeves;
-    DOM.playerToploaders.textContent = gameState.player.supplies.toploaders;
+    
+    if (DOM.playerSleeves) {
+        DOM.playerSleeves.textContent = gameState.player.supplies.sleeves;
+    }
+    
+    if (DOM.playerToploaders) {
+        DOM.playerToploaders.textContent = gameState.player.supplies.toploaders;
+    }
+    
+    // Update date
     DOM.gameDate.textContent = `Day ${gameState.date.day}, Year ${gameState.date.year}`;
 }
 
 function logMessage(message, type = "info") {
-    const logEntry = document.createElement('div');
-    logEntry.className = `log-entry text-sm mb-1 ${getLogTypeClass(type)}`;
+    const logEntry = {
+        message,
+        type,
+        timestamp: new Date().toISOString()
+    };
     
-    const timestamp = document.createElement('span');
-    timestamp.className = 'text-gray-500 mr-1';
-    timestamp.textContent = `[${gameState.date.day}:${gameState.date.year}]`;
+    // Add to game log (limit to 100 entries)
+    if (!gameState.log) gameState.log = [];
+    gameState.log.unshift(logEntry);
+    if (gameState.log.length > 100) gameState.log.pop();
     
-    const content = document.createElement('span');
-    content.textContent = message;
-    
-    logEntry.appendChild(timestamp);
-    logEntry.appendChild(content);
-    
-    DOM.logFeed.appendChild(logEntry);
-    DOM.logFeed.scrollTop = DOM.logFeed.scrollHeight;
-    
-    // Limit log entries
-    while (DOM.logFeed.children.length > 100) {
-        DOM.logFeed.removeChild(DOM.logFeed.firstChild);
-    }
-}
-
-function getLogTypeClass(type) {
-    switch(type) {
-        case "error": return "text-red-400";
-        case "success": return "text-green-400";
-        case "purchase": return "text-blue-400";
-        case "market": return "text-purple-400";
+    // Update log feed if it exists
+    if (DOM.logFeed) {
+        const logItem = document.createElement('div');
+        logItem.className = `log-item log-${type} mb-2 text-sm`;
+        logItem.innerHTML = `<span class="text-gray-400">[Day ${gameState.date.day}]</span> ${message}`;
         
-        case "achievement": return "text-yellow-400";
-        case "reward": return "text-green-300";
-        case "time": return "text-cyan-400";
-        case "system": return "text-gray-300";
-        default: return "text-gray-400";
+        DOM.logFeed.prepend(logItem);
+        
+        // Limit displayed log items
+        while (DOM.logFeed.children.length > 10) {
+            DOM.logFeed.removeChild(DOM.logFeed.lastChild);
+        }
     }
+    
+    // Console log for debugging
+    console.log(`[${type.toUpperCase()}] ${message}`);
 }
 
 function saveGame() {
@@ -2056,206 +2120,35 @@ function loadGame() {
         if (savedGame) {
             const parsedSave = JSON.parse(savedGame);
             updateGameState(parsedSave);
-            
-            // Ensure achievements are properly loaded
-            Object.entries(ACHIEVEMENTS).forEach(([id, achievement]) => {
-                achievement.unlocked = !!gameState.achievements[id];
-            });
-            
             return true;
         }
-        return false;
     } catch (error) {
         console.error('Error loading game:', error);
-        return false;
     }
-}
-
-function exportSaveData() {
-    try {
-        const saveData = JSON.stringify(gameState);
-        const blob = new Blob([saveData], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `cardboard-capitalist-save-${Date.now()}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        logMessage("Save data exported successfully!", "success");
-    } catch (error) {
-        console.error('Error exporting save data:', error);
-        logMessage("Failed to export save data.", "error");
-    }
+    return false;
 }
 
 function resetGame() {
-    try {
-        localStorage.removeItem('cardboardCapitalistSave');
-        location.reload();
-        return true;
-    } catch (error) {
-        console.error('Error resetting game:', error);
-        return false;
-    }
+    localStorage.removeItem('cardboardCapitalistSave');
+    location.reload();
 }
 
-function startTutorial() {
-    tutorialActive = true;
-    currentTutorialStep = 0;
-    showTutorialStep();
+function exportSaveData() {
+    const saveData = JSON.stringify(gameState);
+    const blob = new Blob([saveData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cardboard-capitalist-save-${gameState.date.year}-${gameState.date.day}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 
-function showTutorialStep() {
-    const tutorialSteps = [
-        {
-            title: "Welcome to Cardboard Capitalist!",
-            content: "This game simulates the experience of collecting and trading cards. Let's get you started with the basics.",
-            position: "center"
-        },
-        {
-            title: "Your Collection",
-            content: "This is your collection view. As you acquire cards, they'll appear here. You can click on any card to manage it.",
-            position: "main-view"
-        },
-        {
-            title: "Player Stats",
-            content: "Here you can see your cash, net worth, and supplies. You'll need these to buy packs and protect your cards.",
-            position: "player-stats"
-        },
-        {
-            title: "Time Controls",
-            content: "Click 'Next Day' to advance time. Market conditions change daily, affecting card values.",
-            position: "time-controls"
-        },
-        {
-            title: "Navigation",
-            content: "Use these buttons to navigate between different sections of the game.",
-            position: "main-nav"
-        },
-        {
-            title: "Activity Log",
-            content: "Important events and actions are recorded here so you can keep track of your progress.",
-            position: "log-feed"
-        },
-        {
-            title: "Getting Started",
-            content: "To begin, visit the Store to buy some packs, then open them to start building your collection!",
-            position: "center"
-        }
-    ];
-    
-    if (currentTutorialStep >= tutorialSteps.length) {
-        endTutorial();
-        return;
-    }
-    
-    const step = tutorialSteps[currentTutorialStep];
-    
-    // Remove any existing tutorial overlay
-    const existingOverlay = document.getElementById('tutorial-overlay');
-    if (existingOverlay) {
-        existingOverlay.remove();
-    }
-    
-    // Create tutorial overlay
-    const overlay = document.createElement('div');
-    overlay.id = 'tutorial-overlay';
-    overlay.className = 'fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center';
-    
-    // Create tutorial box
-    const tutorialBox = document.createElement('div');
-    tutorialBox.className = 'bg-gray-800 p-6 rounded-lg max-w-md mx-auto border-2 border-blue-500 shadow-lg';
-    
-    tutorialBox.innerHTML = `
-        <h3 class="text-xl font-bold text-white mb-2">${step.title}</h3>
-        <p class="text-gray-300 mb-4">${step.content}</p>
-        <div class="flex justify-between">
-            <button id="tutorial-prev" class="bg-gray-600 hover:bg-gray-700 text-white py-1 px-3 rounded text-sm" ${currentTutorialStep === 0 ? 'disabled' : ''}>
-                Previous
-            </button>
-            <button id="tutorial-next" class="bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded text-sm">
-                ${currentTutorialStep === tutorialSteps.length - 1 ? 'Finish' : 'Next'}
-            </button>
-        </div>
-    `;
-    
-    // Position the tutorial box
-    if (step.position !== "center") {
-        const targetElement = document.getElementById(step.position);
-        if (targetElement) {
-            const rect = targetElement.getBoundingClientRect();
-            tutorialBox.style.position = 'absolute';
-            
-            // Position near the target element
-            if (rect.top > window.innerHeight / 2) {
-                // Position above
-                tutorialBox.style.bottom = `${window.innerHeight - rect.top + 10}px`;
-            } else {
-                // Position below
-                tutorialBox.style.top = `${rect.bottom + 10}px`;
-            }
-            
-            if (rect.left > window.innerWidth / 2) {
-                // Position to the left
-                tutorialBox.style.right = `${window.innerWidth - rect.left + 10}px`;
-            } else {
-                // Position to the right
-                tutorialBox.style.left = `${rect.right + 10}px`;
-            }
-            
-            // Highlight the target element
-            targetElement.classList.add('tutorial-highlight');
-            setTimeout(() => {
-                targetElement.classList.remove('tutorial-highlight');
-            }, 300);
-        }
-    }
-    
-    overlay.appendChild(tutorialBox);
-    document.body.appendChild(overlay);
-    
-    // Add event listeners
-    document.getElementById('tutorial-prev').addEventListener('click', () => {
-        if (currentTutorialStep > 0) {
-            currentTutorialStep--;
-            showTutorialStep();
-        }
-    });
-    
-    document.getElementById('tutorial-next').addEventListener('click', () => {
-        currentTutorialStep++;
-        if (currentTutorialStep < tutorialSteps.length) {
-            showTutorialStep();
-        } else {
-            endTutorial();
-        }
-    });
-}
-
-function endTutorial() {
-    tutorialActive = false;
-    
-    // Remove tutorial overlay
-    const overlay = document.getElementById('tutorial-overlay');
-    if (overlay) {
-        overlay.remove();
-    }
-    
-    // Mark tutorial as completed
-    if (!gameState.settings) gameState.settings = {};
-    gameState.settings.tutorialCompleted = true;
-    saveGame();
-    
-    logMessage("Tutorial completed! You're ready to start your collection journey.", "system");
-}
-
-// Utility Functions
 function generateUid() {
-    return Date.now().toString(36) + Math.random().toString(36).substring(2);
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
 
 function weightedRandomChoice(weights) {
@@ -2273,12 +2166,140 @@ function weightedRandomChoice(weights) {
     return Object.keys(weights)[0];
 }
 
+function startTutorial() {
+    tutorialActive = true;
+    currentTutorialStep = 0;
+    
+    const tutorialSteps = [
+        {
+            title: "Welcome to Cardboard Capitalist!",
+            content: "This tutorial will guide you through the basics of the game. Click 'Next' to continue.",
+            target: null
+        },
+        {
+            title: "Your Collection",
+            content: "This is your card collection. You can view, manage, and sell your cards here.",
+            target: "#collection-grid"
+        },
+        {
+            title: "Navigation",
+            content: "Use these buttons to navigate between different sections of the game.",
+            target: "#main-nav"
+        },
+        {
+            title: "Store",
+            content: "Visit the store to buy packs and supplies for your cards.",
+            target: "[data-view='store']"
+        },
+        {
+            title: "Next Day",
+            content: "Click this button to advance to the next day. Market conditions may change each day.",
+            target: "#next-day-btn"
+        },
+        {
+            title: "Card Management",
+            content: "Click on any card to inspect it, add protection, or sell it.",
+            target: ".card-container"
+        },
+        {
+            title: "That's it!",
+            content: "You're now ready to start your trading card journey. Good luck!",
+            target: null
+        }
+    ];
+    
+    showTutorialStep(tutorialSteps[currentTutorialStep], tutorialSteps);
+}
+
+function showTutorialStep(step, allSteps) {
+    // Create or get tutorial overlay
+    let tutorialOverlay = document.getElementById('tutorial-overlay');
+    if (!tutorialOverlay) {
+        tutorialOverlay = document.createElement('div');
+        tutorialOverlay.id = 'tutorial-overlay';
+        tutorialOverlay.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
+        document.body.appendChild(tutorialOverlay);
+    }
+    
+    // Create tutorial modal
+    const tutorialModal = document.createElement('div');
+    tutorialModal.className = 'bg-gray-800 p-6 rounded-lg max-w-md mx-auto';
+    
+    tutorialModal.innerHTML = `
+    <h3 class="text-xl font-bold text-white mb-4">${step.title}</h3>
+    <p class="text-gray-300 mb-6">${step.content}</p>
+    <div class="flex justify-between">
+        <button id="tutorial-prev" class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded ${currentTutorialStep === 0 ? 'opacity-50 cursor-not-allowed' : ''}">
+            Previous
+        </button>
+        <button id="tutorial-next" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded">
+            ${currentTutorialStep === allSteps.length - 1 ? 'Finish' : 'Next'}
+        </button>
+    </div>
+    `;
+    
+    tutorialOverlay.innerHTML = '';
+    tutorialOverlay.appendChild(tutorialModal);
+    
+    // Highlight target element if specified
+    if (step.target) {
+        const targetElement = document.querySelector(step.target);
+        if (targetElement) {
+            targetElement.classList.add('tutorial-highlight');
+            targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+    
+    // Add event listeners
+    document.getElementById('tutorial-prev').addEventListener('click', () => {
+        if (currentTutorialStep > 0) {
+            // Remove highlight from current target
+            if (step.target) {
+                const targetElement = document.querySelector(step.target);
+                if (targetElement) targetElement.classList.remove('tutorial-highlight');
+            }
+            
+            currentTutorialStep--;
+            showTutorialStep(allSteps[currentTutorialStep], allSteps);
+        }
+    });
+    
+    document.getElementById('tutorial-next').addEventListener('click', () => {
+        // Remove highlight from current target
+        if (step.target) {
+            const targetElement = document.querySelector(step.target);
+            if (targetElement) targetElement.classList.remove('tutorial-highlight');
+        }
+        
+        if (currentTutorialStep < allSteps.length - 1) {
+            currentTutorialStep++;
+            showTutorialStep(allSteps[currentTutorialStep], allSteps);
+        } else {
+            // End tutorial
+            endTutorial();
+        }
+    });
+}
+
+function endTutorial() {
+    tutorialActive = false;
+    
+    // Remove tutorial overlay
+    const tutorialOverlay = document.getElementById('tutorial-overlay');
+    if (tutorialOverlay) {
+        tutorialOverlay.remove();
+    }
+    
+    // Mark tutorial as completed
+    if (!gameState.settings) gameState.settings = {};
+    gameState.settings.tutorialCompleted = true;
+    
+    saveGame();
+}
+
 // Initialize the game when the document is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeGame);
 } else {
     initializeGame();
 }
-
-
-                        
