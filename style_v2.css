@@ -1,761 +1,112 @@
-@font-face {
-    font-family: 'The Bold Font';
-    src: url('https://mattyflexxgames.github.io/THEBOLDFONT-FREEVERSION.woff') format('woff');
-    font-weight: normal;
-    font-style: normal;
-}
-
-body {
-    font-family: 'Inter', sans-serif;
-}
-.hidden { display: none !important; }
-
-/* --- CARD VISUALS --- */
-.card-container {
-    position: relative;
-    width: 100%; /* Add this line */
-    aspect-ratio: 5 / 7;
-    background-color: #222; /* Dark bg for image loading */
-    border-radius: 4%;
-    overflow: hidden;
+/* Evolution Chain Styling */
+.evolution-chain-container {
+    position: absolute;
     display: flex;
-    justify-content: center;
     align-items: center;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    justify-content: center;
+    z-index: 4;
+}
+
+.evolution-chain {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    background-color: rgba(0, 0, 0, 0.6);
+    border-radius: 15px;
+    padding: 3px 8px;
+}
+
+.evolution-node {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    position: relative;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-.card-container:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 15px rgba(0, 195, 255, 0.3);
-}
-.card-container img {
-    position: absolute; 
-    top: 0; 
-    left: 0;
-    width: 100%; 
-    height: 100%;
-}
-.card-art { 
-    /* This prevents image distortion by maintaining aspect ratio */
-    object-fit: contain; 
-    z-index: 1; 
-}
-.card-frame { 
-    object-fit: cover; 
-    z-index: 2; 
-    pointer-events: none; 
-}
-.card-inspect-overlay {
-    position: absolute; 
-    top: 0; 
-    left: 0;
-    width: 100%; 
-    height: 100%;
-    z-index: 5; 
-    cursor: pointer;
+
+.evolution-node.current {
+    transform: scale(1.2);
+    border: 2px solid gold;
+    box-shadow: 0 0 5px gold;
 }
 
-/* --- TEXT OVERLAY STYLES --- */
-.card-text-overlay {
-    position: absolute; 
-    top: 0; 
-    left: 0;
-    width: 100%; 
-    height: 100%;
-    z-index: 3; 
-    pointer-events: none;
-    display: block; 
+.evolution-arrow {
+    width: 10px;
+    height: 10px;
+    opacity: 0.7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
-.card-name-box, .card-lore-box {
+
+.evolution-arrow::after {
+    content: "→";
+    color: white;
+    font-size: 10px;
+}
+
+/* Tooltip for evolution nodes */
+.evolution-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    font-size: 10px;
+    padding: 2px 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+    margin-bottom: 5px;
+    z-index: 10;
+}
+
+.evolution-node:hover {
+    z-index: 5;
+}
+
+.evolution-node:hover .evolution-tooltip {
+    opacity: 1;
+}
+
+/* Adjust card art positioning to match your new template */
+.card-art {
+    position: absolute;
+    width: 80%; /* Adjust based on your design */
+    height: 32%; /* For 16:9 ratio */
+    top: 7%; /* Position to match the top window */
+    object-fit: cover;
+    border-radius: 5px;
+    z-index: 1;
+}
+
+/* Make sure text elements align with your new template */
+.card-name-box {
     position: absolute;
     display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
     color: white;
-    overflow: hidden;
-    /* This ensures padding is included in width/height, fixing alignment */
-    box-sizing: border-box; 
+    font-weight: bold;
+    font-size: 1rem;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    padding: 0 10px;
 }
-.card-name-box {
-    font-family: 'The Bold Font', sans-serif;
-    text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
-    /* More conservative responsive font size with proper containment */
-    font-size: clamp(6px, 2vw, 12px);
-    /* Add padding to prevent text from touching ribbon edges */
-    padding: 2px 4px;
-    /* Ensure text stays within bounds */
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    overflow: hidden;
-}
+
 .card-lore-box {
-    font-family: 'Inter', sans-serif;
-    align-items: flex-start;
-    white-space: pre-wrap;
-    color: black;
-    padding: 1.5%;
-    /* Responsive font size */
-    font-size: clamp(6px, 1.5vw, 9px);
-}
-/* Specific style for the full-art nameplate */
-.full-art-name-box {
-    font-size: clamp(8px, 2.2vw, 15px);
-    /* Add padding for full-art cards as well */
-    padding: 2px 6px;
-    white-space: nowrap;
-    text-overflow: ellipsis;
+    position: absolute;
+    color: white;
+    font-size: 0.8rem;
+    text-align: center;
     overflow: hidden;
-}
-
-
-/* --- CONTEXT-AWARE SIZING (FOR LOUPE MODAL) --- */
-#loupe-view-modal .card-name-box {
-    font-size: 28px;
-    /* Ensure text containment in loupe view */
-    padding: 4px 8px;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    overflow: hidden;
-}
-#loupe-view-modal .card-lore-box {
-    font-size: 17px;
-}
-#loupe-view-modal .full-art-name-box {
-    font-size: 30px;
-    /* Consistent text handling for full-art in loupe view */
-    padding: 4px 10px;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    overflow: hidden;
-}
-
-
-/* --- LOUPE MODAL STYLES --- */
-#loupe-view-modal {
-    position: fixed; 
-    top: 0; 
-    left: 0; 
-    width: 100vw; 
-    height: 100vh;
-    z-index: 50; 
-    display: flex; 
-    align-items: center; 
-    justify-content: center;
-}
-.modal-backdrop {
-    position: absolute; 
-    top: 0; 
-    left: 0; 
-    width: 100%; 
-    height: 100%;
-    background-color: rgba(17, 24, 39, 0.8); 
-    backdrop-filter: blur(5px);
-}
-.modal-content {
-    position: relative; 
-    background-color: #1f2937; 
-    border: 1px solid #374151;
-    border-radius: 0.75rem; 
-    padding: 1.5rem; 
-    width: 90%; 
-    max-width: 450px;
-    display: flex; 
-    flex-direction: column; 
-    gap: 1rem; 
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-}
-.modal-header { 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
-}
-.inspection-area {
-    position: relative; 
-    width: 100%;
-    border-radius: 0.5rem; 
-    overflow: hidden;
-}
-#card-image-container { 
-    position: relative; 
-    width: 100%; 
-    margin: 0 auto; 
-}
-
-
-/* --- TUTORIAL STYLES --- */
-.tutorial-highlight {
-  position: relative;
-  z-index: 51;
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.5), 0 0 20px rgba(59, 130, 246, 0.3);
-  border-radius: 8px;
-}
-
-.tutorial-highlight::after {
-  content: '';
-  position: absolute;
-  inset: -4px;
-  border: 2px solid #3b82f6;
-  border-radius: 8px;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-/* --- INSERT/ALT ART CARD STYLES --- */
-.card-insert-art {
-  position: relative;
-  background: linear-gradient(135deg, #ff0000, #ff8000, #ffff00, #80ff00, #00ff00, #00ff80, #00ffff, #0080ff, #0000ff, #8000ff, #ff00ff, #ff0080);
-  background-size: 400% 400%;
-  animation: rainbow-border 3s ease infinite;
-  border-radius: 8%;
-  padding: 8px;
-}
-
-/* --- HOLO EFFECTS --- */
-.card-holo-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(45deg, 
-    transparent 25%, 
-    rgba(255, 255, 255, 0.2) 25%, 
-    rgba(255, 255, 255, 0.2) 50%, 
-    transparent 50%, 
-    transparent 75%, 
-    rgba(255, 255, 255, 0.2) 75%
-  );
-  background-size: 20px 20px;
-  animation: holo-shimmer 2s linear infinite;
-  z-index: 10;
-  pointer-events: none;
-  border-radius: 4%;
-  box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.1);
-}
-
-/* Full-card holo effect for Holo Rare cards */
-.card-holo-overlay.full-card {
-  border-radius: 0;
-}
-
-@keyframes holo-shimmer {
-  0% { 
-    background-position: 0px 0px;
-    opacity: 0.25;
-  }
-  50% { 
-    opacity: 0.35;
-  }
-  100% { 
-    background-position: 40px 40px;
-    opacity: 0.25;
-  }
-}
-
-@keyframes rainbow-border {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-.card-insert-art .card-inner {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  background: #000;
-  border-radius: 6%;
-  overflow: hidden;
-}
-
-.card-insert-art .card-art {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 85%;
-  object-fit: cover;
-  z-index: 1;
-}
-
-.card-insert-art .card-gradient-box {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 15%;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%);
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  align-items: center;
-  padding: 2%;
-  box-sizing: border-box;
-}
-
-.card-insert-art .card-doodlemon-name {
-  font-family: 'The Bold Font', sans-serif;
-  font-size: clamp(6px, 2.5vw, 16px);
-  color: #333;
-  text-align: center;
-  margin-bottom: 2%;
-  text-shadow: none;
-  line-height: 1.1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-  /* Add padding to prevent text from touching edges */
-  padding: 0 4px;
-}
-
-.card-insert-art .card-doodlemon-logo {
-  position: absolute;
-  bottom: 2%;
-  right: 2%;
-  width: 15%;
-  height: auto;
-  z-index: 3;
-  opacity: 0.8;
-}
-
-.card-insert-art .card-texture-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: 
-    linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.15) 32%, rgba(255, 255, 255, 0.15) 34%, transparent 36%),
-    linear-gradient(-45deg, transparent 30%, rgba(255, 255, 255, 0.15) 32%, rgba(255, 255, 255, 0.15) 34%, transparent 36%);
-  background-size: 12px 12px;
-  animation: texture-shimmer 3s ease-in-out infinite;
-  z-index: 4;
-  pointer-events: none;
-  border-radius: 6%;
-  box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.1);
-}
-
-@keyframes texture-shimmer {
-  0%, 100% { 
-    opacity: 0.4;
-    transform: translateX(0);
-  }
-  50% { 
-    opacity: 0.8;
-    transform: translateX(2px);
-  }
-}
-
-/* Loupe view styles for insert art cards */
-#loupe-view-modal .card-insert-art .card-doodlemon-name {
-  font-size: 26px;
-  /* Consistent padding for loupe view */
-  padding: 0 8px;
-}
-
-/* Accessibility improvements */
-.card-insert-art:focus {
-  outline: 3px solid #fff;
-  outline-offset: 2px;
-}
-
-.card-insert-art .card-doodlemon-logo {
-  alt: "Doodlemon logo";
-}
-
-/* --- COLLECTION GRID CENTERING --- */
-#collection-grid {
-  justify-self: center;
-  max-width: fit-content;
-  margin: 0 auto;
-}
-
-/* --- PACK OPENING ANIMATIONS --- */
-
-/* Pack opening container */
-.pack-opening-container {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-  position: relative;
-  overflow: hidden;
-}
-
-/* Pack glow effect */
-.pack-glow {
-  animation: pack-pulse 2s ease-in-out infinite;
-}
-
-@keyframes pack-pulse {
-  0%, 100% { 
-    opacity: 0.2;
-    transform: scale(1); 
-  }
-  50% { 
-    opacity: 0.4;
-    transform: scale(1.1); 
-  }
-}
-
-/* Pack ripping animation */
-.ripping-animation {
-  animation: pack-rip 2s ease-out;
-}
-
-@keyframes pack-rip {
-  0% { 
-    transform: scale(1) rotate(0deg);
-    opacity: 1;
-  }
-  25% { 
-    transform: scale(1.05) rotate(-2deg);
-    opacity: 0.9;
-  }
-  50% { 
-    transform: scale(1.1) rotate(1deg);
-    opacity: 0.7;
-  }
-  75% { 
-    transform: scale(1.15) rotate(-1deg);
-    opacity: 0.5;
-  }
-  100% { 
-    transform: scale(1.2) rotate(0deg);
-    opacity: 0.3;
-  }
-}
-
-/* Rip effects */
-.rip-effects {
-  animation: rip-flash 0.5s ease-out infinite;
-}
-
-@keyframes rip-flash {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
-}
-
-/* Card flip animation */
-.card-flip-animation {
-  perspective: 1000px;
-  animation: card-reveal 1.5s ease-out;
-}
-
-.card-flip-animation .card-face {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  backface-visibility: hidden;
-  transform-style: preserve-3d;
-  transition: transform 0.8s;
-}
-
-.card-back-face {
-  transform: rotateY(0deg);
-}
-
-.card-front-face {
-  transform: rotateY(180deg);
-}
-
-.card-flip-animation.flipped .card-back-face {
-  transform: rotateY(-180deg);
-}
-
-.card-flip-animation.flipped .card-front-face {
-  transform: rotateY(0deg);
-}
-
-@keyframes card-reveal {
-  0% { 
-    transform: translateY(-50px) scale(0.8);
-    opacity: 0;
-  }
-  50% { 
-    transform: translateY(0) scale(1.1);
-    opacity: 1;
-  }
-  100% { 
-    transform: translateY(0) scale(1);
-    opacity: 1;
-  }
-}
-
-/* Card stack hover effects */
-.card-stack:hover {
-  transform: scale(1.05);
-  filter: brightness(1.1);
-}
-
-/* Cards remaining badge */
-.cards-remaining-badge {
-  animation: badge-bounce 1s ease-in-out infinite;
-}
-
-@keyframes badge-bounce {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-}
-
-/* Pack results fan display */
-.cards-fan-display .pack-card-result {
-  transition: all 0.3s ease;
-}
-
-.cards-fan-display .pack-card-result:hover {
-  transform: translateY(-10px) scale(1.1);
-  z-index: 10;
-  filter: brightness(1.2);
-}
-
-.cards-fan-display .pack-card-result:hover .card-info-popup {
-  display: block;
-}
-
-/* Rarity effect animations */
-@keyframes tier1-shimmer {
-  0% { 
-    box-shadow: 0 0 20px rgba(128, 0, 255, 0.5);
-    transform: scale(1);
-  }
-  50% { 
-    box-shadow: 0 0 40px rgba(128, 0, 255, 0.8);
-    transform: scale(1.05);
-  }
-  100% { 
-    box-shadow: 0 0 20px rgba(128, 0, 255, 0.5);
-    transform: scale(1);
-  }
-}
-
-@keyframes tier2-explosion {
-  0% { 
-    box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
-    transform: scale(1);
-  }
-  25% { 
-    box-shadow: 0 0 60px rgba(255, 215, 0, 1);
-    transform: scale(1.1);
-  }
-  50% { 
-    box-shadow: 0 0 100px rgba(255, 0, 0, 0.8);
-    transform: scale(1.15);
-  }
-  75% { 
-    box-shadow: 0 0 80px rgba(255, 215, 0, 0.9);
-    transform: scale(1.05);
-  }
-  100% { 
-    box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
-    transform: scale(1);
-  }
-}
-
-/* Apply rarity effects */
-.holo-rare-effect {
-  animation: tier1-shimmer 2s ease-in-out;
-}
-
-.chase-rare-effect {
-  animation: tier2-explosion 3s ease-in-out;
-}
-
-/* Celebration effects animations */
-@keyframes confettiFall {
-  0% {
-    transform: translateY(-100vh) rotate(0deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(100vh) rotate(720deg);
-    opacity: 0;
-  }
-}
-
-@keyframes fireworkBurst {
-  0% {
-    transform: translate(0, 0) scale(1);
-    opacity: 1;
-  }
-  100% {
-    transform: translate(var(--endX), var(--endY)) scale(0);
-    opacity: 0;
-  }
-}
-
-@keyframes flashEffect {
-  0% {
-    opacity: 0;
-  }
-  10% {
-    opacity: 0.8;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
-@keyframes sparkleEffect {
-  0% {
-    opacity: 0;
-    transform: scale(0) rotate(0deg);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.5) rotate(180deg);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(0) rotate(360deg);
-  }
-}
-
-@keyframes beamPulse {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) rotate(var(--angle, 0deg)) scale(0, 1);
-  }
-  50% {
-    opacity: 1;
-    transform: translate(-50%, -50%) rotate(var(--angle, 0deg)) scale(1, 1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -50%) rotate(var(--angle, 0deg)) scale(2, 1);
-  }
-}
-
-@keyframes explosionParticle {
-  0% {
-    transform: translate(0, 0) scale(1);
-    opacity: 1;
-  }
-  100% {
-    transform: translate(var(--randomX), var(--randomY)) scale(0);
-    opacity: 0;
-  }
-}
-
-/* Responsive adjustments for pack opening */
-@media (max-width: 768px) {
-  .pack-opening-container {
-    padding: 4rem 1rem;
-  }
-  
-  .pack-image {
-    width: 128px !important;
-    height: 192px !important;
-  }
-  
-  .cards-fan-display {
-    grid-template-columns: repeat(3, 1fr) !important;
-  }
-  
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-}
-
-/* --- LAZY LOADING STYLES --- */
-
-/* Base lazy image styling */
-.lazy-card-image {
-    transition: opacity 0.3s ease, filter 0.3s ease;
-    background-color: #2a2a2a;
-}
-
-/* Loading state - show placeholder with animation */
-.lazy-card-image.loading {
-    opacity: 0.7;
-    filter: blur(2px);
-    background: linear-gradient(
-        90deg,
-        #2a2a2a 25%,
-        #3a3a3a 50%,
-        #2a2a2a 75%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-}
-
-/* Loaded state - smooth transition to full visibility */
-.lazy-card-image.loaded {
-    opacity: 1;
-    filter: none;
-    background: none;
-}
-
-/* Error state - maintain visibility but indicate error */
-.lazy-card-image.error {
-    opacity: 0.8;
-    filter: grayscale(100%) brightness(0.7);
-    background: linear-gradient(
-        45deg,
-        #4a1a1a 25%,
-        #3a1a1a 25%,
-        #3a1a1a 50%,
-        #4a1a1a 50%,
-        #4a1a1a 75%,
-        #3a1a1a 75%
-    );
-    background-size: 8px 8px;
-}
-
-/* Shimmer animation for loading state */
-@keyframes shimmer {
-    0% {
-        background-position: -200% 0;
-    }
-    100% {
-        background-position: 200% 0;
-    }
-}
-
-/* Loading pulse animation as alternative */
-@keyframes loadingPulse {
-    0%, 100% {
-        opacity: 0.7;
-    }
-    50% {
-        opacity: 0.9;
-    }
-}
-
-/* High priority images (use pulse instead of shimmer) */
-.lazy-card-image.loading.priority {
-    animation: loadingPulse 1s infinite ease-in-out;
-    background: #3a3a3a;
-}
-
-/* Fade in effect for newly loaded images */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: scale(0.95);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
-.lazy-card-image.loaded {
-    animation: fadeIn 0.4s ease-out;
-}
-
-/* Reduced motion for accessibility */
-@media (prefers-reduced-motion: reduce) {
-    .lazy-card-image {
-        transition: none;
-        animation: none;
-    }
-    
-    .lazy-card-image.loading {
-        background: #3a3a3a;
-    }
+    padding: 5px 10px;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
 }
